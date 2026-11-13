@@ -78,8 +78,12 @@ class NavigationLocation {
     String notificationChannelName = 'Navigation',
     AndroidResource notificationIcon =
         const AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
-  }) {
-    return Geolocator.getPositionStream(
+  }) async* {
+    // geolocator shares one position stream while it has a listener. Asking
+    // for it only once listened to means that swapping streams (cancel the
+    // old, listen to a new one) starts a fresh one, foreground service
+    // included, instead of picking up the one being shut down.
+    yield* Geolocator.getPositionStream(
       locationSettings: settings(
         background: background,
         interval: interval,
