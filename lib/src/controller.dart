@@ -379,9 +379,13 @@ class NavigationController extends ChangeNotifier {
       unawaited(_rerouteFrom(stamped));
     }
 
+    final previousStep = _upcoming;
     _upcoming = _upcomingFrom(_along);
     _then = _thenOf(_upcoming);
     _distanceToNext = math.max(0, _maneuverAlong[_upcoming] - _along);
+    if (_upcoming != previousStep) {
+      _emit(StepChanged(_upcoming, _steps[_upcoming]));
+    }
 
     if (!_recalculating && !_offRoute) _prompt();
 
@@ -396,6 +400,13 @@ class NavigationController extends ChangeNotifier {
         now - (_lastEtaAt ?? now) >= _settings.etaRefreshSeconds * 1000) {
       unawaited(_refreshEta(stamped));
     }
+    _emit(ProgressUpdated(
+      remainingDistance: remainingDistance,
+      remainingDuration: remainingDuration,
+      distanceToNextStep: _distanceToNext,
+      position: displayPosition ?? position,
+      speedMps: speedMps,
+    ));
     _notify();
   }
 
@@ -816,6 +827,7 @@ class NavigationController extends ChangeNotifier {
     final planned = _routeSecondsFrom(along);
     if (planned < 30) return;
     _trafficFactor = (seconds / planned).clamp(0.5, 3.0);
+    _emit(EtaUpdated(remainingDuration, DateTime.now().add(remainingDuration)));
     _notify();
   }
 

@@ -654,6 +654,42 @@ void main() {
     });
   });
 
+  group('progress events', () {
+    test('every counted fix reports progress, each maneuver passed once',
+        () async {
+      final d = Drive();
+      d.start(testRoute());
+      await d.feed(drive(routePath()).take(20));
+      await Drive.settle();
+      final progress = d.events.whereType<ProgressUpdated>().toList();
+      expect(progress, hasLength(20));
+      expect(progress.last.remainingDistance, closeTo(1300, 3));
+      expect(progress.last.distanceToNextStep, closeTo(400, 3));
+      expect(progress.last.remainingDuration.inSeconds, closeTo(130, 2));
+      expect(progress.last.speedMps, 10);
+      expect(d.events.whereType<StepChanged>(), isEmpty);
+
+      await d.feed(drive(routePath()).skip(20).take(50));
+      await Drive.settle();
+      final steps = d.events.whereType<StepChanged>().toList();
+      expect(steps, hasLength(1));
+      expect(steps.single.step.streetName, 'Ermou');
+      expect(steps.single.index, d.nav.upcomingIndex);
+    });
+
+    test('a corrected time left from the router is an event', () async {
+      final d =
+          Drive(settings: const NavigationSettings(etaRefreshSeconds: 30));
+      d.start(testRoute(), eta: (r) async => 500);
+      await d.feed(drive(routePath()).take(35));
+      await Drive.settle();
+      final eta = d.events.whereType<EtaUpdated>().toList();
+      expect(eta, hasLength(1));
+      // 500 s against 120 s planned is capped at three times: 360 s.
+      expect(eta.single.remainingDuration.inSeconds, closeTo(360, 5));
+    });
+  });
+
   group('start and stop', () {
     test('navigateTo asks from the last fix and starts', () async {
       final d = Drive();

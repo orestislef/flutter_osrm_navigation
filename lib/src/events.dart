@@ -78,6 +78,61 @@ class DestinationReached extends NavigationEvent {
   const DestinationReached();
 }
 
+/// The next maneuver changed: the one before was passed.
+class StepChanged extends NavigationEvent {
+  /// Creates the event.
+  const StepChanged(this.index, this.step);
+
+  /// Index of the new next maneuver in `NavigationController.steps`.
+  final int index;
+
+  /// The new next maneuver.
+  final NavStep step;
+}
+
+/// Progress along the route, after every GPS fix that counted.
+class ProgressUpdated extends NavigationEvent {
+  /// Creates the event.
+  const ProgressUpdated({
+    required this.remainingDistance,
+    required this.remainingDuration,
+    required this.distanceToNextStep,
+    required this.position,
+    required this.speedMps,
+  });
+
+  /// Metres left along the route.
+  final double remainingDistance;
+
+  /// Time left.
+  final Duration remainingDuration;
+
+  /// Metres to the next maneuver.
+  final double distanceToNextStep;
+
+  /// Where the position is drawn (on the route line when close to it).
+  final LatLng position;
+
+  /// Speed in m/s.
+  final double speedMps;
+
+  /// When the user should arrive, by the device's clock.
+  DateTime get estimatedArrival => DateTime.now().add(remainingDuration);
+}
+
+/// The router gave a fresh time estimate (traffic, when it knows it) and
+/// the time left was corrected.
+class EtaUpdated extends NavigationEvent {
+  /// Creates the event.
+  const EtaUpdated(this.remainingDuration, this.estimatedArrival);
+
+  /// Time left now.
+  final Duration remainingDuration;
+
+  /// When the user should arrive, by the device's clock.
+  final DateTime estimatedArrival;
+}
+
 /// The voice said [text].
 class InstructionSpoken extends NavigationEvent {
   /// Creates the event.
