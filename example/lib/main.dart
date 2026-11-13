@@ -93,6 +93,7 @@ class _NavigationPageState extends State<NavigationPage> {
   LatLng? _to;
   final List<LatLng> _stops = [];
   bool _busy = false;
+  bool _simulating = false;
   String? _error;
 
   @override
@@ -120,15 +121,13 @@ class _NavigationPageState extends State<NavigationPage> {
     }
     if (!mounted) return;
     setState(() => _access = access);
-    if (access == LocationAccess.granted) {
-      _nav.attachLocation(
-        NavigationLocation.stream(
-          notificationTitle: 'OSRM Navigation',
-          notificationText: 'Guiding you to your destination',
-        ),
-      );
-    }
+    if (access == LocationAccess.granted) _nav.attachLocation(_gps());
   }
+
+  Stream<NavFix> _gps() => NavigationLocation.stream(
+        notificationTitle: 'OSRM Navigation',
+        notificationText: 'Guiding you to your destination',
+      );
 
   void _onEvent(NavigationEvent event) {
     if (!mounted) return;
@@ -144,7 +143,7 @@ class _NavigationPageState extends State<NavigationPage> {
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
-  bool get _hasGps => _nav.lastFix != null && !_sim.isRunning;
+  bool get _hasGps => _nav.lastFix != null && !_simulating;
 
   /// A long press sets the start (when there is no GPS), then the
   /// destination, then adds stops.
@@ -172,7 +171,18 @@ class _NavigationPageState extends State<NavigationPage> {
       _error = null;
     });
     try {
-      if (simulate) _nav.detachLocation();
+      if (simulate) {
+        _simulating = true;
+        // The simulator feeds the position now. The location stream stays
+        // listened to with its fixes dropped: on Android that keeps the
+        // foreground service, so a simulated drive also goes on talking
+        // with the phone locked, just like a real one.
+        if (_access == LocationAccess.granted) {
+          _nav.attachLocation(_gps().where((_) => false));
+        } else {
+          _nav.detachLocation();
+        }
+      }
       await _nav.navigateTo(
         to,
         from: from,
@@ -182,17 +192,22 @@ class _NavigationPageState extends State<NavigationPage> {
       if (simulate) _sim.start();
     } catch (e) {
       _error = e is RoutingException ? e.message : '$e';
-      if (simulate) _startGps();
+      if (simulate) {
+        _simulating = false;
+        _startGps();
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   void _stop() {
-    final simulated = _sim.isRunning;
     _sim.stop();
     _nav.stop();
-    if (simulated) _startGps();
+    if (_simulating) {
+      _simulating = false;
+      _startGps();
+    }
     setState(() {});
   }
 
@@ -237,6 +252,12 @@ class _NavigationPageState extends State<NavigationPage> {
             ),
           ],
           overlays: [
+            if (_nav.isActive && _simulating)
+              Positioned(
+                left: 12,
+                bottom: 0,
+                child: SafeArea(child: _detours()),
+              ),
             if (!_nav.isActive)
               Positioned(
                 left: 12,
@@ -246,6 +267,28 @@ class _NavigationPageState extends State<NavigationPage> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Leave the route on purpose while simulating, to see it reroute.
+  Widget _detours() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          FilledButton.tonalIcon(
+            onPressed: _sim.missTurn,
+            icon: const Icon(Icons.call_missed_outgoing),
+            label: const Text('Miss the turn'),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: _sim.turnAround,
+            icon: const Icon(Icons.u_turn_left),
+            label: const Text('Turn around'),
+          ),
+        ],
       ),
     );
   }
