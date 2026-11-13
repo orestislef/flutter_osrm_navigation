@@ -1,9 +1,23 @@
 import 'dart:async';
 
+import 'package:latlong2/latlong.dart';
+
 import 'controller.dart';
 import 'geometry.dart';
 import 'off_route.dart';
 import 'route.dart';
+
+/// What the simulated car is doing.
+enum SimulatorMode {
+  /// Following the route.
+  follow,
+
+  /// Going straight on, off the route, as if a turn was missed.
+  straight,
+
+  /// Driving back along the route, the wrong way.
+  back,
+}
 
 /// Drives along the controller's route on its own, feeding it fixes.
 ///
@@ -11,13 +25,17 @@ import 'route.dart';
 /// follows reroutes too: when the route changes it carries on along the new
 /// one from where it is.
 ///
+/// [missTurn] and [turnAround] leave the route on purpose, to see the
+/// rerouting work: the controller notices, asks for a new route, and the
+/// simulator follows that one.
+///
 /// ```dart
 /// final sim = RouteSimulator(controller, speedKmh: 50);
 /// sim.start();
 /// ```
 ///
-/// Do not attach a real location stream at the same time, the two would
-/// fight over the position.
+/// Do not feed real fixes at the same time, the two would fight over the
+/// position.
 class RouteSimulator {
   /// Creates a simulator for [controller].
   RouteSimulator(
@@ -43,14 +61,22 @@ class RouteSimulator {
   NavRoute? _route;
   RouteLine? _line;
   double _along = 0;
+  SimulatorMode _mode = SimulatorMode.follow;
+  LatLng? _position;
+  double _heading = 0;
 
   /// True while driving.
   bool get isRunning => _timer != null;
+
+  /// What the car is doing now. Back to [SimulatorMode.follow] with every
+  /// new route.
+  SimulatorMode get mode => _mode;
 
   /// Starts driving from the start of the current route, or from where the
   /// position is on it.
   void start() {
     stop();
+    _position = null;
     _rebase();
     if (_line == null) return;
     controller.addListener(_onController);
@@ -65,6 +91,20 @@ class RouteSimulator {
     controller.removeListener(_onController);
   }
 
+  /// Goes straight on from here and leaves the route, the way a missed
+  /// turn does.
+  void missTurn() {
+    if (!isRunning) return;
+    _mode = SimulatorMode.straight;
+  }
+
+  /// Turns around and drives back along the route, the wrong way.
+  void turnAround() {
+    if (!isRunning) return;
+    _mode = SimulatorMode.back;
+    _heading = (_heading + 180) % 360;
+  }
+
   void _onController() {
     if (!controller.isActive) {
       stop();
@@ -76,6 +116,7 @@ class RouteSimulator {
   /// Follows the controller's current route from the nearest point to the
   /// last position.
   void _rebase() {
+    _mode = SimulatorMode.follow;
     final route = controller.route;
     _route = route;
     if (route == null || route.points.length < 2) {
@@ -84,7 +125,7 @@ class RouteSimulator {
     }
     final line = RouteLine(route.points);
     _line = line.isEmpty ? null : line;
-    final here = controller.lastFix?.position;
+    final here = _position ?? controller.lastFix?.position;
     _along =
         here == null || _line == null ? 0 : (_line!.match(here)?.alongM ?? 0);
   }
@@ -95,12 +136,32 @@ class RouteSimulator {
       stop();
       return;
     }
-    _along += speedKmh / 3.6 * interval.inMilliseconds / 1000;
-    if (_along >= line.lengthM) {
-      _along = line.lengthM;
-      _emit();
-      stop();
-      return;
+    final step = speedKmh / 3.6 * interval.inMilliseconds / 1000;
+    switch (_mode) {
+      case SimulatorMode.follow:
+        _along += step;
+        if (_along >= line.lengthM) {
+          _along = line.lengthM;
+          _emit();
+          stop();
+          return;
+        }
+      case SimulatorMode.straight:
+        _position = offsetBy(_position ?? line.pointAt(_along), _heading, step);
+        _emitAt(_position!, _heading);
+        return;
+      case SimulatorMode.back:
+        if (_along <= 0) {
+          _mode = SimulatorMode.straight;
+          _tick();
+          return;
+        }
+        _along = (_along - step).clamp(0, line.lengthM);
+        final p = line.pointAt(_along);
+        _heading = (line.bearingAt(_along) + 180) % 360;
+        _position = p;
+        _emitAt(p, _heading);
+        return;
     }
     _emit();
   }
@@ -108,11 +169,17 @@ class RouteSimulator {
   void _emit() {
     final line = _line;
     if (line == null) return;
+    _position = line.pointAt(_along);
+    _heading = line.bearingAt(_along);
+    _emitAt(_position!, _heading);
+  }
+
+  void _emitAt(LatLng p, double heading) {
     controller.updateLocation(NavFix(
-      line.pointAt(_along),
+      p,
       accuracyM: accuracyM,
       speedMps: speedKmh / 3.6,
-      headingDeg: line.bearingAt(_along),
+      headingDeg: heading,
     ));
   }
 }

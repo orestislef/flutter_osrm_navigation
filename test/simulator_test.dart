@@ -45,4 +45,59 @@ void main() {
       expect(sim.isRunning, isFalse);
     });
   });
+
+  group('leaving the route on purpose', () {
+    /// A controller whose router answers with a straight route east from
+    /// wherever it is asked, and records the requests.
+    (NavigationController, List<RouteRequest>, RecordingVoice) rerouting(
+        FakeAsync async) {
+      final asked = <RouteRequest>[];
+      final voice = RecordingVoice();
+      final nav = NavigationController(
+        voice: voice,
+        clock: () => async.elapsed.inMilliseconds,
+        router: CallbackRouter(route: (r) async {
+          asked.add(r);
+          return navRoute(r.points.first, [(90, 400, 'Detour')]);
+        }),
+      );
+      return (nav, asked, voice);
+    }
+
+    test('a missed turn: off the route, a new route, and on along it', () {
+      fakeAsync((async) {
+        final (nav, asked, voice) = rerouting(async);
+        nav.start(testRoute());
+        final sim = RouteSimulator(nav, speedKmh: 36)..start();
+        // 550 m along, 50 m before the left turn: carry straight on.
+        async.elapse(const Duration(seconds: 55));
+        sim.missTurn();
+        expect(sim.mode, SimulatorMode.straight);
+        // 50 m to the corner, then three fixes more than 50 m off the line.
+        async.elapse(const Duration(seconds: 15));
+        expect(asked, hasLength(1));
+        expect(asked.single.headingDeg, closeTo(90, 1));
+        expect(voice.said, contains('Recalculating the route'));
+        expect(sim.mode, SimulatorMode.follow, reason: 'on the new route');
+        expect(nav.upcomingStep!.streetName, 'Detour');
+        async.elapse(const Duration(seconds: 60));
+        expect(nav.arrived, isTrue);
+        expect(asked, hasLength(1), reason: 'no more reroutes once back on');
+      });
+    });
+
+    test('turning around: the wrong way, a new route starting that way', () {
+      fakeAsync((async) {
+        final (nav, asked, _) = rerouting(async);
+        nav.start(testRoute());
+        final sim = RouteSimulator(nav, speedKmh: 36)..start();
+        async.elapse(const Duration(seconds: 30));
+        sim.turnAround();
+        async.elapse(const Duration(seconds: 6));
+        expect(asked, hasLength(1));
+        expect(asked.single.headingDeg, closeTo(270, 1));
+        expect(sim.mode, SimulatorMode.follow);
+      });
+    });
+  });
 }
