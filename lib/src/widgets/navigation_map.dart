@@ -1,0 +1,455 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../controller.dart';
+import '../geometry.dart';
+import 'banner.dart';
+import 'layers.dart';
+import 'style.dart';
+
+/// A flutter_map with navigation built in: the route, the stops, the
+/// position gliding smoothly between fixes, the banner, and a camera that
+/// follows.
+///
+/// While navigating the camera turns with the road ([headingUp]), zooms out
+/// as the car goes faster ([autoZoom]), and keeps the car low on the screen
+/// ([positionAt]) so more of the road ahead shows. Touch the map and it
+/// stops following; it comes back after [recenterAfter] or with the
+/// re-center button.
+///
+/// Bring your own tiles in [layers]:
+///
+/// ```dart
+/// NavigationMap(
+///   controller: controller,
+///   layers: [
+///     TileLayer(
+///       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+///       userAgentPackageName: 'com.example.app',
+///     ),
+///   ],
+/// )
+/// ```
+class NavigationMap extends StatefulWidget {
+  /// Creates the map.
+  const NavigationMap({
+    super.key,
+    required this.controller,
+    this.layers = const [],
+    this.topLayers = const [],
+    this.overlays = const [],
+    this.mapController,
+    this.style,
+    this.initialCenter,
+    this.initialZoom = 16,
+    this.minZoom = 3,
+    this.maxZoom = 19,
+    this.headingUp = true,
+    this.autoZoom = true,
+    this.slowZoom = 17.5,
+    this.fastZoom = 15.5,
+    this.slowKmh = 20,
+    this.fastKmh = 90,
+    this.positionAt = 0.7,
+    this.recenterAfter = const Duration(seconds: 10),
+    this.glide = const Duration(milliseconds: 900),
+    this.showBanner = true,
+    this.bannerActions = const [],
+    this.showRecenterButton = true,
+    this.showStops = true,
+    this.showAccuracy = true,
+    this.positionMarker,
+    this.onTap,
+    this.onLongPress,
+  });
+
+  /// The navigation to show.
+  final NavigationController controller;
+
+  /// Layers under the route: your tile layer, polygons, anything.
+  final List<Widget> layers;
+
+  /// Layers above the position marker.
+  final List<Widget> topLayers;
+
+  /// Widgets over the map, in a [Stack] above the banner (a bottom panel,
+  /// your own buttons). Use [Positioned] or [Align] in them.
+  final List<Widget> overlays;
+
+  /// Your own map controller, to move the map yourself. One is made when
+  /// null.
+  final MapController? mapController;
+
+  /// Colors over the theme's.
+  final NavigationStyle? style;
+
+  /// Where the map opens. The last fix, or 0, 0 when null.
+  final LatLng? initialCenter;
+
+  /// The zoom the map opens at.
+  final double initialZoom;
+
+  /// The least zoom.
+  final double minZoom;
+
+  /// The most zoom.
+  final double maxZoom;
+
+  /// Turn the map with the direction of travel while navigating.
+  final bool headingUp;
+
+  /// Zoom by speed while navigating, from [slowZoom] at [slowKmh] to
+  /// [fastZoom] at [fastKmh].
+  final bool autoZoom;
+
+  /// Zoom at [slowKmh] and below.
+  final double slowZoom;
+
+  /// Zoom at [fastKmh] and above.
+  final double fastZoom;
+
+  /// See [autoZoom].
+  final double slowKmh;
+
+  /// See [autoZoom].
+  final double fastKmh;
+
+  /// Where the car sits while navigating, as a fraction of the height from
+  /// the top. 0.5 is the middle.
+  final double positionAt;
+
+  /// After the user moves the map, follow again after this long while
+  /// navigating. [Duration.zero] waits for the button.
+  final Duration recenterAfter;
+
+  /// How long the position takes to glide to a new fix. About the time
+  /// between fixes looks smooth. [Duration.zero] jumps.
+  final Duration glide;
+
+  /// Show the [NavigationBanner] at the top.
+  final bool showBanner;
+
+  /// Extra buttons at the end of the banner's footer.
+  final List<Widget> bannerActions;
+
+  /// Show the re-center button when not following.
+  final bool showRecenterButton;
+
+  /// Draw the stops and the destination.
+  final bool showStops;
+
+  /// Draw the GPS accuracy circle when the position is not on the route.
+  final bool showAccuracy;
+
+  /// Your own position marker, drawn pointing up. See
+  /// [NavigationPositionLayer.marker].
+  final Widget? positionMarker;
+
+  /// A tap on the map.
+  final void Function(TapPosition tapPosition, LatLng point)? onTap;
+
+  /// A long press on the map.
+  final void Function(TapPosition tapPosition, LatLng point)? onLongPress;
+
+  @override
+  State<NavigationMap> createState() => _NavigationMapState();
+}
+
+class _NavigationMapState extends State<NavigationMap>
+    with SingleTickerProviderStateMixin {
+  static const _gestures = {
+    MapEventSource.dragStart,
+    MapEventSource.onDrag,
+    MapEventSource.multiFingerGestureStart,
+    MapEventSource.onMultiFinger,
+    MapEventSource.doubleTap,
+    MapEventSource.doubleTapHold,
+    MapEventSource.scrollWheel,
+    MapEventSource.cursorKeyboardRotation,
+    MapEventSource.keyboard,
+  };
+
+  MapController? _own;
+  MapController get _map => widget.mapController ?? (_own ??= MapController());
+
+  late final AnimationController _glide;
+  bool _ready = false;
+  bool _following = true;
+  bool _wasActive = false;
+  bool _noAnimations = false;
+  Timer? _recenterTimer;
+
+  LatLng? _pos;
+  double? _heading;
+  LatLng? _fromPos;
+  LatLng? _toPos;
+  double? _fromHeading;
+  double? _toHeading;
+  double _fromZoom = 0;
+  double _toZoom = 0;
+  double _fromRot = 0;
+  double _toRot = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _glide = AnimationController(vsync: this, duration: widget.glide)
+      ..addListener(_onTick);
+    _wasActive = widget.controller.isActive;
+    _pos = widget.controller.displayPosition;
+    _heading = widget.controller.displayHeading;
+    widget.controller.addListener(_onNav);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _noAnimations = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+  }
+
+  @override
+  void didUpdateWidget(NavigationMap old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.controller, widget.controller)) {
+      old.controller.removeListener(_onNav);
+      widget.controller.addListener(_onNav);
+    }
+    if (old.glide != widget.glide) _glide.duration = widget.glide;
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onNav);
+    _recenterTimer?.cancel();
+    _glide.dispose();
+    _own?.dispose();
+    super.dispose();
+  }
+
+  NavigationController get _nav => widget.controller;
+
+  double _targetZoom() {
+    final current = _ready ? _map.camera.zoom : widget.initialZoom;
+    if (!_nav.isActive || !widget.autoZoom) return current;
+    final kmh = _nav.speedMps * 3.6;
+    final span = widget.fastKmh - widget.slowKmh;
+    final t = span <= 0 ? 0.0 : ((kmh - widget.slowKmh) / span).clamp(0.0, 1.0);
+    return widget.slowZoom + (widget.fastZoom - widget.slowZoom) * t;
+  }
+
+  double _targetRotation(double? heading) {
+    final current = _ready ? _map.camera.rotation : 0.0;
+    if (!_nav.isActive) return _following ? 0 : current;
+    if (!widget.headingUp) return 0;
+    return heading == null ? current : -heading;
+  }
+
+  void _onNav() {
+    final active = _nav.isActive;
+    if (active && !_wasActive) _following = true;
+    final ended = !active && _wasActive;
+    _wasActive = active;
+    final target = _nav.displayPosition;
+    final heading = _nav.displayHeading;
+    if (target == null) return;
+    final moved = target != _toPos || heading != _toHeading;
+    if (!moved && !ended) return;
+    _startGlide(target, heading);
+  }
+
+  void _startGlide(LatLng target, double? heading) {
+    final jump = _pos == null ||
+        _noAnimations ||
+        widget.glide == Duration.zero ||
+        metresBetween(_pos!, target) > 1000;
+    _fromPos = jump ? target : _pos;
+    _toPos = target;
+    _fromHeading = heading == null || _heading == null ? heading : _heading;
+    _toHeading = heading;
+    if (_ready) {
+      _fromZoom = _map.camera.zoom;
+      _fromRot = _map.camera.rotation;
+    }
+    _toZoom = _targetZoom();
+    _toRot = _targetRotation(heading);
+    if (jump) {
+      _glide.value = 1;
+      _onTick();
+    } else {
+      _glide.forward(from: 0);
+    }
+  }
+
+  static double _lerpAngle(double a, double b, double t) {
+    final d = ((b - a) % 360 + 540) % 360 - 180;
+    return a + d * t;
+  }
+
+  void _onTick() {
+    final from = _fromPos;
+    final to = _toPos;
+    if (from == null || to == null || !mounted) return;
+    final t = _glide.value;
+    final pos = LatLng(
+      from.latitude + (to.latitude - from.latitude) * t,
+      from.longitude + (to.longitude - from.longitude) * t,
+    );
+    final fh = _fromHeading;
+    final th = _toHeading;
+    final heading = th == null
+        ? null
+        : (fh == null ? th : (_lerpAngle(fh, th, t) + 360) % 360);
+    setState(() {
+      _pos = pos;
+      _heading = heading;
+    });
+    if (_following && _ready) {
+      final zoom = _fromZoom + (_toZoom - _fromZoom) * t;
+      final rotation = _lerpAngle(_fromRot, _toRot, t);
+      _map.moveAndRotate(_centerFor(pos, zoom, rotation), zoom, rotation);
+    }
+  }
+
+  /// The camera center that puts [p] at [NavigationMap.positionAt] for the
+  /// given zoom and rotation.
+  LatLng _centerFor(LatLng p, double zoom, double rotation) {
+    if (!_nav.isActive || widget.positionAt == 0.5) return p;
+    final camera = _map.camera;
+    final size = camera.nonRotatedSize;
+    if (size.width <= 0 || size.height <= 0) return p;
+    final placed =
+        camera.withRotation(rotation).withPosition(center: p, zoom: zoom);
+    final middle = size.center(Offset.zero);
+    final focus = Offset(size.width / 2, size.height * widget.positionAt);
+    return placed.screenOffsetToLatLng(middle + (middle - focus));
+  }
+
+  void _onMapEvent(MapEvent event) {
+    if (!_gestures.contains(event.source)) return;
+    if (_following) setState(() => _following = false);
+    _recenterTimer?.cancel();
+    if (_nav.isActive && widget.recenterAfter > Duration.zero) {
+      _recenterTimer = Timer(widget.recenterAfter, () {
+        if (mounted && !_following && _nav.isActive) _recenter();
+      });
+    }
+  }
+
+  void _recenter() {
+    _recenterTimer?.cancel();
+    final here = _nav.displayPosition;
+    setState(() => _following = true);
+    if (here == null || !_ready) return;
+    _fromPos = _pos ?? here;
+    _toPos = here;
+    _fromHeading = _heading;
+    _toHeading = _nav.displayHeading;
+    _fromZoom = _map.camera.zoom;
+    _fromRot = _map.camera.rotation;
+    _toZoom = _nav.isActive ? _targetZoom() : _map.camera.zoom;
+    _toRot = _targetRotation(_toHeading);
+    if (_noAnimations) {
+      _glide.value = 1;
+      _onTick();
+    } else {
+      _glide.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = NavigationStyle.resolve(context, widget.style);
+    final fix = _nav.lastFix;
+    final accuracy = widget.showAccuracy && _nav.snappedPosition == null
+        ? fix?.accuracyM
+        : null;
+    final map = FlutterMap(
+      mapController: _map,
+      options: MapOptions(
+        initialCenter:
+            widget.initialCenter ?? _nav.displayPosition ?? const LatLng(0, 0),
+        initialZoom: widget.initialZoom,
+        minZoom: widget.minZoom,
+        maxZoom: widget.maxZoom,
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        onMapEvent: _onMapEvent,
+        onMapReady: () {
+          _ready = true;
+          final here = _nav.displayPosition;
+          if (here != null) _startGlide(here, _nav.displayHeading);
+        },
+      ),
+      children: [
+        ...widget.layers,
+        NavigationRouteLayer(controller: _nav, style: widget.style),
+        if (widget.showStops)
+          NavigationStopsLayer(controller: _nav, style: widget.style),
+        NavigationPositionLayer(
+          position: _pos,
+          heading: _heading,
+          accuracyM: accuracy,
+          style: widget.style,
+          marker: widget.positionMarker,
+        ),
+        ...widget.topLayers,
+      ],
+    );
+
+    return Stack(
+      children: [
+        Positioned.fill(child: map),
+        if (widget.showBanner)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: NavigationBanner(
+                      controller: _nav,
+                      style: widget.style,
+                      footerActions: widget.bannerActions,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (widget.showRecenterButton &&
+            !_following &&
+            _nav.displayPosition != null)
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              left: false,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: FloatingActionButton.extended(
+                  key: const ValueKey('nav-recenter'),
+                  heroTag: null,
+                  backgroundColor: s.buttonColor,
+                  foregroundColor: s.onButtonColor,
+                  onPressed: _recenter,
+                  icon: const Icon(Icons.navigation),
+                  label: Text(_nav.strings.recenter),
+                ),
+              ),
+            ),
+          ),
+        ...widget.overlays,
+      ],
+    );
+  }
+}
