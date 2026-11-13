@@ -7,3 +7,4 @@ export 'src/off_route.dart' show NavFix;
 export 'src/route.dart';
 export 'src/router.dart';
 export 'src/settings.dart';
+export 'src/strings.dart';
