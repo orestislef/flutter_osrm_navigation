@@ -1,3 +1,13 @@
+## 0.1.1
+
+More events, so distance and time can be followed without listening to the controller:
+
+* `ProgressUpdated` after every GPS fix that counted: distance and time left, distance to the next maneuver, position, speed, arrival time
+* `StepChanged` when the next maneuver changes, the one before passed
+* `EtaUpdated` when the router's estimate corrects the time left
+
+Nothing to change on your side.
+
 ## 0.1.0
 
 First release.

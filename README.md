@@ -30,7 +30,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.0
+  flutter_osrm_navigation: ^0.1.1
 ```
 
 ## Quick start
@@ -316,7 +316,25 @@ controller.events.listen((event) {
 });
 ```
 
-Also `NavigationStarted`, `NavigationStopped`, `OffRouteChanged`, `RerouteStarted` (a new route is being asked for, the banner shows "Recalculating") and `InstructionSpoken`. The same state is on the controller for your UI: `recalculating`, `offRoute`, `arrived`.
+Also `NavigationStarted`, `NavigationStopped`, `OffRouteChanged`, `RerouteStarted` (a new route is being asked for, the banner shows "Recalculating") and `InstructionSpoken`.
+
+For distance and time:
+
+```dart
+controller.events.listen((event) {
+  switch (event) {
+    case ProgressUpdated(:final remainingDistance, :final remainingDuration):
+      // after every GPS fix that counted, also distanceToNextStep,
+      // position, speedMps and estimatedArrival
+      print('${remainingDistance.round()} m, ${remainingDuration.inMinutes} min left');
+    case StepChanged(:final step):
+      print('next: ${controller.upcomingInstruction}');
+    case EtaUpdated(:final estimatedArrival):
+      print('router corrected the arrival to $estimatedArrival');
+    default:
+  }
+});
+``` The same state is on the controller for your UI: `recalculating`, `offRoute`, `arrived`.
 
 ## Your own UI
 
