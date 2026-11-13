@@ -1,6 +1,8 @@
 /// Turn-by-turn navigation for flutter_map on OSRM and Valhalla routers.
 library;
 
+export 'src/controller.dart';
+export 'src/events.dart';
 export 'src/geometry.dart';
 export 'src/polyline.dart';
 export 'src/off_route.dart' show NavFix;
