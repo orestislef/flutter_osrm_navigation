@@ -3,3 +3,4 @@ library;
 
 export 'src/geometry.dart';
 export 'src/polyline.dart';
+export 'src/route.dart';
