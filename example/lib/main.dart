@@ -143,7 +143,8 @@ class _NavigationPageState extends State<NavigationPage> {
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
-  bool get _hasGps => _nav.lastFix != null && !_simulating;
+  bool get _hasGps =>
+      _access == LocationAccess.granted && _nav.lastFix != null && !_simulating;
 
   /// A long press sets the start (when there is no GPS), then the
   /// destination, then adds stops.
