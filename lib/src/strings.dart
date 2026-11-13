@@ -142,6 +142,15 @@ abstract class NavigationStrings {
   /// "13 min" for under an hour, "1 h 5 min" above.
   String duration(int hours, int minutes);
 
+  /// A time of day, "5:14 PM" or "17:14". [use24h] is the device's 24 hour
+  /// setting, for languages where both are in use.
+  String clockTime(DateTime time, {required bool use24h}) {
+    final m = time.minute.toString().padLeft(2, '0');
+    if (use24h) return '${time.hour.toString().padLeft(2, '0')}:$m';
+    final h = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    return '$h:$m ${time.hour < 12 ? 'AM' : 'PM'}';
+  }
+
   // Banner.
 
   /// Banner text while a new route is on its way.
@@ -599,6 +608,12 @@ class GreekNavigationStrings extends NavigationStrings {
   @override
   String duration(int hours, int minutes) =>
       hours == 0 ? '$minutes λεπ.' : '$hours ώρ. $minutes λεπ.';
+
+  // Greece reads the time on the 24 hour clock.
+  @override
+  String clockTime(DateTime time, {required bool use24h}) =>
+      '${time.hour.toString().padLeft(2, '0')}:'
+      '${time.minute.toString().padLeft(2, '0')}';
 
   @override
   String get recalculating => 'Επανυπολογισμός…';

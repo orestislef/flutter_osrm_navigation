@@ -69,16 +69,11 @@ class NavigationBanner extends StatelessWidget {
     return Icon(maneuverIcon(step, stop: stop), color: color, size: size);
   }
 
-  String _clock(BuildContext context, DateTime time) {
-    final local =
-        Localizations.of<MaterialLocalizations>(context, MaterialLocalizations);
-    if (local != null) {
-      return local.formatTimeOfDay(TimeOfDay.fromDateTime(time),
-          alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context));
-    }
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(time.hour)}:${two(time.minute)}';
-  }
+  /// The time in the navigation's language, not the app's: a Greek banner
+  /// in an English app says 17:14, not 5:14 PM.
+  String _clock(BuildContext context, DateTime time) =>
+      controller.strings.clockTime(time,
+          use24h: MediaQuery.maybeAlwaysUse24HourFormatOf(context) ?? false);
 
   Widget _build(BuildContext context, NavStep step) {
     final s = NavigationStyle.resolve(context, style);
@@ -147,10 +142,23 @@ class NavigationBanner extends StatelessWidget {
           Icon(Icons.flag, color: on, size: 32),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(strings.arrived(c.arrival),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: titleStyle),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(strings.arrived(c.arrival),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle),
+                if ((c.destinationName ?? '').isNotEmpty)
+                  Text(c.destinationName!,
+                      key: const ValueKey('nav-arrived-name'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: s.instructionTextStyle
+                          .copyWith(color: on.withValues(alpha: 0.85))),
+              ],
+            ),
           ),
         ],
       );
@@ -225,6 +233,7 @@ class NavigationBanner extends StatelessWidget {
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           );
+    final footerRow = footerText != null;
     final needsTap = c.voiceEnabled &&
         c.voiceState == VoiceState.needsTap &&
         showVoiceButton;
@@ -246,6 +255,22 @@ class NavigationBanner extends StatelessWidget {
               child: Row(children: [
                 Expanded(child: main),
                 if (voiceButton != null) voiceButton,
+                // Nothing to show below (arrived): the buttons come up here
+                // instead of sitting alone on an empty strip.
+                if (!footerRow && footerActions.isNotEmpty)
+                  IconButtonTheme(
+                    data: IconButtonThemeData(
+                      style: IconButton.styleFrom(foregroundColor: on),
+                    ),
+                    child: IconTheme.merge(
+                      data: IconThemeData(color: on),
+                      child: Row(
+                        key: const ValueKey('nav-actions-top'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: footerActions,
+                      ),
+                    ),
+                  ),
               ]),
             ),
           ),
@@ -312,14 +337,14 @@ class NavigationBanner extends StatelessWidget {
                 ),
               ),
             ),
-          if (footerText != null || footerActions.isNotEmpty)
+          if (footerRow)
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 4, 0),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),
                 child: Row(
                   children: [
-                    Expanded(child: footerText ?? const SizedBox.shrink()),
+                    Expanded(child: footerText),
                     ...footerActions,
                   ],
                 ),

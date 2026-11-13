@@ -138,6 +138,15 @@ void main() {
       expect(en.spokenDistance(301.8, DistanceUnits.imperial), '0.2 miles');
     });
 
+    test('time of day in the navigation language', () {
+      final t = DateTime(2026, 11, 13, 17, 4);
+      expect(en.clockTime(t, use24h: false), '5:04 PM');
+      expect(en.clockTime(t, use24h: true), '17:04');
+      expect(
+          en.clockTime(DateTime(2026, 1, 1, 0, 30), use24h: false), '12:30 AM');
+      expect(el.clockTime(t, use24h: false), '17:04');
+    });
+
     test('duration', () {
       expect(en.shortDuration(10), '1 min');
       expect(en.shortDuration(13 * 60), '13 min');

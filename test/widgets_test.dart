@@ -101,6 +101,28 @@ void main() {
       expect(find.byKey(const ValueKey('nav-eta')), findsNothing);
     });
 
+    testWidgets('arrived: no empty footer, the buttons move up',
+        (tester) async {
+      final d = Drive();
+      d.start(testRoute(), name: 'Ermou 5');
+      await tester.pumpWidget(app(NavigationBanner(
+        controller: d.nav,
+        footerActions: [
+          IconButton(icon: const Icon(Icons.close), onPressed: d.nav.stop),
+        ],
+      )));
+      expect(find.byKey(const ValueKey('nav-actions-top')), findsNothing);
+      await tester.runAsync(() => d.feed(drive(routePath())));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-arrived')), findsOneWidget);
+      expect(find.text('Ermou 5'), findsOneWidget);
+      expect(find.byKey(const ValueKey('nav-actions-top')), findsOneWidget);
+      expect(find.byKey(const ValueKey('nav-eta')), findsNothing);
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+      expect(d.nav.isActive, isFalse);
+    });
+
     testWidgets('the voice button mutes, asks for a tap, or says there is none',
         (tester) async {
       final d = Drive();
