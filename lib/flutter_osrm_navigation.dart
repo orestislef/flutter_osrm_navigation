@@ -4,6 +4,7 @@ library;
 export 'src/controller.dart';
 export 'src/events.dart';
 export 'src/geometry.dart';
+export 'src/location.dart';
 export 'src/polyline.dart';
 export 'src/off_route.dart' show NavFix;
 export 'src/route.dart';

@@ -295,10 +295,14 @@ class NavigationController extends ChangeNotifier {
   // ── Location ─────────────────────────────────────────────────────────
 
   /// Listens to [fixes] until [detachLocation], [dispose], or another
-  /// stream is attached.
-  void attachLocation(Stream<NavFix> fixes) {
+  /// stream is attached. Errors on the stream (permission taken away,
+  /// location switched off) go to [onError] and do not end navigation.
+  void attachLocation(Stream<NavFix> fixes,
+      {void Function(Object error)? onError}) {
     _locationSub?.cancel();
-    _locationSub = fixes.listen(updateLocation);
+    _locationSub = fixes.listen(updateLocation, onError: (Object e) {
+      onError?.call(e);
+    });
   }
 
   /// Stops listening to the attached location stream.
