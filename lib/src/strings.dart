@@ -227,51 +227,46 @@ abstract class NavigationStrings {
   }
 
   /// [distanceM] as said by the voice, rounded the way people say it.
+  ///
+  /// The switch to kilometres (or miles) is made on the rounded value, so
+  /// 990 m is "1 kilometer" and not "1000 meters".
   String spokenDistance(double distanceM, DistanceUnits units) {
     if (units == DistanceUnits.imperial) {
       final feet = distanceM * 3.28084;
-      if (feet < 1000) {
-        final rounded = feet > 300
-            ? (feet / 50).round() * 50
-            : _atLeast10((feet / 10).round() * 10);
-        return feetSpoken(rounded);
-      }
+      final rounded = feet > 300
+          ? (feet / 50).round() * 50
+          : _atLeast10((feet / 10).round() * 10);
+      if (rounded < 1000) return feetSpoken(rounded);
       final miles = distanceM / 1609.344;
       final text = _decimal(miles, miles < 10 ? 1 : 0);
       return milesSpoken(text, one: text == '1');
     }
-    if (distanceM >= 1000) {
-      final km = distanceM / 1000;
-      final text = _decimal(km, km < 10 ? 1 : 0);
-      return kilometersSpoken(text, one: text == '1');
-    }
     final metres = distanceM > 100
         ? (distanceM / 50).round() * 50
         : _atLeast10((distanceM / 10).round() * 10);
-    return metersSpoken(metres);
+    if (metres < 1000) return metersSpoken(metres);
+    final km = distanceM / 1000;
+    final text = _decimal(km, km < 10 ? 1 : 0);
+    return kilometersSpoken(text, one: text == '1');
   }
 
   /// [distanceM] as shown on screen, "200 m", "4.3 km".
   String shortDistance(double distanceM, DistanceUnits units) {
     if (units == DistanceUnits.imperial) {
       final feet = distanceM * 3.28084;
-      if (feet < 1000) {
-        final rounded = feet > 300
-            ? (feet / 50).round() * 50
-            : (feet > 100 ? (feet / 10).round() * 10 : feet.round());
-        return feetShort(rounded);
-      }
+      final rounded = feet > 300
+          ? (feet / 50).round() * 50
+          : (feet > 100 ? (feet / 10).round() * 10 : feet.round());
+      if (rounded < 1000) return feetShort(rounded);
       final miles = distanceM / 1609.344;
       return milesShort(_decimal(miles, miles < 10 ? 1 : 0));
-    }
-    if (distanceM >= 1000) {
-      final km = distanceM / 1000;
-      return kilometersShort(_decimal(km, km < 10 ? 1 : 0));
     }
     final rounded = distanceM > 300
         ? (distanceM / 50).round() * 50
         : (distanceM > 100 ? (distanceM / 10).round() * 10 : distanceM.round());
-    return metersShort(rounded);
+    if (rounded < 1000) return metersShort(rounded);
+    final km = distanceM / 1000;
+    return kilometersShort(_decimal(km, km < 10 ? 1 : 0));
   }
 
   /// [seconds] as shown on screen, at least one minute.

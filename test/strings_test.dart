@@ -130,6 +130,14 @@ void main() {
       expect(en.shortDistance(3218.7, DistanceUnits.imperial), '2 mi');
     });
 
+    test('just under a kilometer is a kilometer, not "1000 m"', () {
+      expect(en.shortDistance(999.6, DistanceUnits.metric), '1 km');
+      expect(el.shortDistance(990, DistanceUnits.metric), '1 χλμ');
+      expect(en.spokenDistance(990, DistanceUnits.metric), '1 kilometer');
+      expect(en.shortDistance(301.8, DistanceUnits.imperial), '0.2 mi');
+      expect(en.spokenDistance(301.8, DistanceUnits.imperial), '0.2 miles');
+    });
+
     test('duration', () {
       expect(en.shortDuration(10), '1 min');
       expect(en.shortDuration(13 * 60), '13 min');
