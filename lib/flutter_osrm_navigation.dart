@@ -8,3 +8,4 @@ export 'src/route.dart';
 export 'src/router.dart';
 export 'src/settings.dart';
 export 'src/strings.dart';
+export 'src/voice/voice.dart';
