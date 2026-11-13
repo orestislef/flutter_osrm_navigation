@@ -11,6 +11,18 @@ topics:
   - flutter-map
   - routing
 
+screenshots:
+  - description: Navigating with the banner, the route and the position.
+    path: screenshots/navigation.webp
+  - description: The maneuver right after the next one, shown with it.
+    path: screenshots/then.webp
+  - description: Custom colors through NavigationStyle, in Greek.
+    path: screenshots/custom_colors_greek.webp
+  - description: Night theme.
+    path: screenshots/night.webp
+  - description: Arrived at the destination.
+    path: screenshots/arrived.webp
+
 environment:
   sdk: ^3.6.0
   flutter: ">=3.27.0"
