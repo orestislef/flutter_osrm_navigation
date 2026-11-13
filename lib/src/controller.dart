@@ -456,6 +456,18 @@ class NavigationController extends ChangeNotifier {
     _voice.stop();
     _gate.reset();
     _detector.reset();
+    // A last fix far from where this route starts is from another trip (or
+    // a simulated drive somewhere else): it must not make the first fixes of
+    // this one look like a jump.
+    final last = _lastFix;
+    final first = route.points.isNotEmpty
+        ? route.points.first
+        : (route.steps.isNotEmpty ? route.steps.first.location : null);
+    if (last == null ||
+        first == null ||
+        metresBetween(last.position, first) > 500) {
+      _detector.forget();
+    }
     _arrival = arrival;
     _destinationName = destinationName;
     _routeSeq++;

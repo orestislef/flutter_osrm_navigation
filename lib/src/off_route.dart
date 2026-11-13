@@ -121,6 +121,16 @@ class OffRouteDetector {
   /// Fixes in a row off the line so far.
   int get offCount => _offCount;
 
+  /// Forgets the recent fixes too, for when the next fix comes from
+  /// somewhere else entirely (a new trip, a simulated drive).
+  void forget() {
+    reset();
+    _lastGood = null;
+    _history.clear();
+    heading = null;
+    speed = null;
+  }
+
   /// Forgets what was counted (a new route). The recent fixes stay, for the
   /// speed and the heading.
   void reset() {

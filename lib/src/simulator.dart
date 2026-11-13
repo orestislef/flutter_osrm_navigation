@@ -72,12 +72,11 @@ class RouteSimulator {
   /// new route.
   SimulatorMode get mode => _mode;
 
-  /// Starts driving from the start of the current route, or from where the
-  /// position is on it.
+  /// Starts driving from the start of the current route.
   void start() {
     stop();
     _position = null;
-    _rebase();
+    _rebase(fromStart: true);
     if (_line == null) return;
     controller.addListener(_onController);
     _timer = Timer.periodic(interval, (_) => _tick());
@@ -113,9 +112,9 @@ class RouteSimulator {
     if (!identical(controller.route, _route)) _rebase();
   }
 
-  /// Follows the controller's current route from the nearest point to the
-  /// last position.
-  void _rebase() {
+  /// Follows the controller's current route: from its start, or (after a
+  /// reroute) from the nearest point to where the car is.
+  void _rebase({bool fromStart = false}) {
     _mode = SimulatorMode.follow;
     final route = controller.route;
     _route = route;
@@ -125,7 +124,7 @@ class RouteSimulator {
     }
     final line = RouteLine(route.points);
     _line = line.isEmpty ? null : line;
-    final here = _position ?? controller.lastFix?.position;
+    final here = fromStart ? null : _position;
     _along =
         here == null || _line == null ? 0 : (_line!.match(here)?.alongM ?? 0);
   }

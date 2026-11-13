@@ -28,6 +28,22 @@ void main() {
     });
   });
 
+  test('a new drive starts at the start, wherever the last one ended', () {
+    fakeAsync((async) {
+      final nav = controller(async, RecordingVoice())..start(testRoute());
+      final sim = RouteSimulator(nav, speedKmh: 36)..start();
+      async.elapse(const Duration(seconds: 140));
+      sim.stop();
+      nav.stop();
+      async.elapse(const Duration(seconds: 1));
+      nav.start(testRoute());
+      sim.start();
+      async.elapse(const Duration(seconds: 2));
+      expect(nav.remainingDistance, closeTo(1480, 15));
+      expect(nav.arrived, isFalse);
+    });
+  });
+
   test('stops when navigation stops', () {
     fakeAsync((async) {
       final nav = controller(async, RecordingVoice())..start(testRoute());
