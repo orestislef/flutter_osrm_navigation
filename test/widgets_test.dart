@@ -232,5 +232,36 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.byKey(const ValueKey('nav-recenter')), findsNothing);
     });
+
+    testWidgets('mid glide the line starts right at the marker, on the road',
+        (tester) async {
+      final d = Drive();
+      d.start(testRoute());
+      await tester.pumpWidget(app(NavigationMap(
+        controller: d.nav,
+        initialCenter: trackStart,
+      )));
+      final track = drive(routePath());
+      // Up to 20 m before the corner, then one fix 20 m past it.
+      await tester.runAsync(() => d.feed(track.take(58)));
+      // A glide starts on the next frame and takes 900 ms.
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.runAsync(() => d.feed([track[61]]));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 450));
+
+      final marker = tester
+          .widget<NavigationPositionLayer>(find.byType(NavigationPositionLayer))
+          .position!;
+      final line = tester
+          .widget<PolylineLayer>(find.byType(PolylineLayer))
+          .polylines
+          .single
+          .points;
+      expect(metresBetween(marker, line.first), lessThan(0.5));
+      // Halfway through the glide it is at the corner, not cutting across.
+      expect(metresBetween(marker, cornerA), lessThan(3));
+    });
   });
 }

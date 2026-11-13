@@ -249,6 +249,12 @@ class NavigationController extends ChangeNotifier {
   DateTime? get estimatedArrival =>
       _active ? DateTime.now().add(remainingDuration) : null;
 
+  /// The route as a measured line, null when not navigating.
+  RouteLine? get routeLine => _line;
+
+  /// How far along [routeLine] the user is, in metres.
+  double get progressMeters => _along;
+
   /// The line still ahead. The part behind is not part of it.
   List<LatLng> get remainingLine =>
       _line == null ? const [] : _line!.remainingFrom(_along);

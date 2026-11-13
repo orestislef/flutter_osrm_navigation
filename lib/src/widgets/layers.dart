@@ -14,13 +14,23 @@ import 'style.dart';
 /// Put it in `FlutterMap.children` above the tiles.
 class NavigationRouteLayer extends StatelessWidget {
   /// Creates the layer.
-  const NavigationRouteLayer({super.key, required this.controller, this.style});
+  const NavigationRouteLayer({
+    super.key,
+    required this.controller,
+    this.style,
+    this.progressMeters,
+  });
 
   /// The navigation to draw.
   final NavigationController controller;
 
   /// Colors over the theme's.
   final NavigationStyle? style;
+
+  /// Where along the route the line is cut, in metres. The controller's
+  /// [NavigationController.progressMeters] when null. Set it when you
+  /// animate the position, so the line ends right at the marker.
+  final double? progressMeters;
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +39,16 @@ class NavigationRouteLayer extends StatelessWidget {
       builder: (context, _) {
         if (!controller.isActive) return const SizedBox.shrink();
         final s = NavigationStyle.resolve(context, style);
-        final ahead = controller.remainingLine;
+        final line = controller.routeLine;
+        final cut = progressMeters;
+        final ahead = cut == null || line == null
+            ? controller.remainingLine
+            : line.remainingFrom(cut);
         final behind = s.traveledColor == null
             ? const <LatLng>[]
-            : controller.traveledLine;
+            : (cut == null || line == null
+                ? controller.traveledLine
+                : line.traveledTo(cut));
         return PolylineLayer(
           polylines: [
             if (behind.length >= 2)

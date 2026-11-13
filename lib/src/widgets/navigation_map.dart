@@ -193,6 +193,13 @@ class _NavigationMapState extends State<NavigationMap>
   double _fromRot = 0;
   double _toRot = 0;
 
+  // While on the route the marker glides along the road (round corners
+  // rather than across them) and the line is cut right at it.
+  RouteLine? _line;
+  double? _fromAlong;
+  double? _toAlong;
+  double? _along;
+
   @override
   void initState() {
     super.initState();
@@ -255,9 +262,35 @@ class _NavigationMapState extends State<NavigationMap>
     final target = _nav.displayPosition;
     final heading = _nav.displayHeading;
     if (target == null) return;
-    final moved = target != _toPos || heading != _toHeading;
+    final moved = target != _toPos ||
+        heading != _toHeading ||
+        !identical(_nav.routeLine, _line);
     if (!moved && !ended) return;
     _startGlide(target, heading);
+  }
+
+  /// Sets up the glide along the route line, or a cut at the controller's
+  /// progress when the marker cannot follow the line (a new route, off the
+  /// route, a jump).
+  void _setAlong({required bool glide}) {
+    final line = _nav.routeLine;
+    final snapped = _nav.snappedPosition != null;
+    final to = _nav.progressMeters;
+    final from = _along;
+    final sameLine = line != null && identical(line, _line);
+    if (glide &&
+        snapped &&
+        sameLine &&
+        from != null &&
+        to - from >= -5 &&
+        to - from <= 500) {
+      _fromAlong = from;
+    } else {
+      _fromAlong = null;
+    }
+    _toAlong = snapped ? to : null;
+    _line = line;
+    if (_fromAlong == null) _along = _toAlong;
   }
 
   void _startGlide(LatLng target, double? heading) {
@@ -269,6 +302,7 @@ class _NavigationMapState extends State<NavigationMap>
     _toPos = target;
     _fromHeading = heading == null || _heading == null ? heading : _heading;
     _toHeading = heading;
+    _setAlong(glide: !jump);
     if (_ready) {
       _fromZoom = _map.camera.zoom;
       _fromRot = _map.camera.rotation;
@@ -293,10 +327,20 @@ class _NavigationMapState extends State<NavigationMap>
     final to = _toPos;
     if (from == null || to == null || !mounted) return;
     final t = _glide.value;
-    final pos = LatLng(
-      from.latitude + (to.latitude - from.latitude) * t,
-      from.longitude + (to.longitude - from.longitude) * t,
-    );
+    final line = _line;
+    final fromAlong = _fromAlong;
+    final toAlong = _toAlong;
+    final LatLng pos;
+    double? along = _along;
+    if (line != null && fromAlong != null && toAlong != null) {
+      along = fromAlong + (toAlong - fromAlong) * t;
+      pos = t >= 1 ? to : line.pointAt(along);
+    } else {
+      pos = LatLng(
+        from.latitude + (to.latitude - from.latitude) * t,
+        from.longitude + (to.longitude - from.longitude) * t,
+      );
+    }
     final fh = _fromHeading;
     final th = _toHeading;
     final heading = th == null
@@ -305,6 +349,7 @@ class _NavigationMapState extends State<NavigationMap>
     setState(() {
       _pos = pos;
       _heading = heading;
+      _along = along;
     });
     if (_following && _ready) {
       final zoom = _fromZoom + (_toZoom - _fromZoom) * t;
@@ -347,6 +392,7 @@ class _NavigationMapState extends State<NavigationMap>
     _toPos = here;
     _fromHeading = _heading;
     _toHeading = _nav.displayHeading;
+    _setAlong(glide: false);
     _fromZoom = _map.camera.zoom;
     _fromRot = _map.camera.rotation;
     _toZoom = _nav.isActive ? _targetZoom() : _map.camera.zoom;
@@ -385,7 +431,11 @@ class _NavigationMapState extends State<NavigationMap>
       ),
       children: [
         ...widget.layers,
-        NavigationRouteLayer(controller: _nav, style: widget.style),
+        NavigationRouteLayer(
+          controller: _nav,
+          style: widget.style,
+          progressMeters: _along,
+        ),
         if (widget.showStops)
           NavigationStopsLayer(controller: _nav, style: widget.style),
         NavigationPositionLayer(
