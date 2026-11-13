@@ -1,3 +1,8 @@
+## 0.1.2
+
+* Arrival no longer leaves an empty strip under the banner: the footer buttons move up next to the arrival text, which also shows the destination name
+* The arrival time follows the navigation language: 24 hour in Greek, the device setting in English (`NavigationStrings.clockTime`)
+
 ## 0.1.1
 
 More events, so distance and time can be followed without listening to the controller:

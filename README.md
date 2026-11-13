@@ -30,7 +30,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.1
+  flutter_osrm_navigation: ^0.1.2
 ```
 
 ## Quick start
