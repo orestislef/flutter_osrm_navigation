@@ -203,6 +203,49 @@ void main() {
     });
   });
 
+  group('NavigationSpeedometer', () {
+    testWidgets('km/h, mph and the language, only while navigating',
+        (tester) async {
+      final d = Drive();
+      await tester.pumpWidget(app(NavigationSpeedometer(controller: d.nav)));
+      expect(find.byKey(const ValueKey('nav-speed')), findsNothing);
+      d.start(testRoute());
+      await tester.runAsync(() => d.feed(drive(routePath()).take(3)));
+      await tester.pump();
+      expect(find.text('36'), findsOneWidget, reason: '10 m/s');
+      expect(find.text('km/h'), findsOneWidget);
+
+      d.nav.settings = const NavigationSettings(units: DistanceUnits.imperial);
+      await tester.pump();
+      expect(find.text('22'), findsOneWidget);
+      expect(find.text('mph'), findsOneWidget);
+
+      d.nav.settings = const NavigationSettings();
+      d.nav.strings = const GreekNavigationStrings();
+      await tester.pump();
+      expect(find.text('χλμ/ώ'), findsOneWidget);
+
+      d.nav.stop();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsNothing);
+    });
+
+    testWidgets('NavigationMap shows it by default and can hide it',
+        (tester) async {
+      final d = Drive();
+      d.start(testRoute());
+      await tester.runAsync(() => d.feed(drive(routePath()).take(2)));
+      await tester.pumpWidget(
+          app(NavigationMap(controller: d.nav, initialCenter: trackStart)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsOneWidget);
+      await tester.pumpWidget(app(NavigationMap(
+          controller: d.nav, initialCenter: trackStart, showSpeed: false)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsNothing);
+    });
+  });
+
   group('NavigationMap', () {
     testWidgets('draws the route and the position, follows, re-centers',
         (tester) async {

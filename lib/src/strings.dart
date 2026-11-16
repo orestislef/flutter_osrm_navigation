@@ -142,6 +142,17 @@ abstract class NavigationStrings {
   /// "13 min" for under an hour, "1 h 5 min" above.
   String duration(int hours, int minutes);
 
+  /// The unit under the speed: "km/h" or "mph".
+  String speedUnit(DistanceUnits units) =>
+      units == DistanceUnits.imperial ? 'mph' : 'km/h';
+
+  /// [speedMps] in the units shown, rounded to a whole number.
+  int speedValue(double speedMps, DistanceUnits units) {
+    final v =
+        units == DistanceUnits.imperial ? speedMps * 2.2369363 : speedMps * 3.6;
+    return v.isFinite && v > 0 ? v.round() : 0;
+  }
+
   /// A time of day, "5:14 PM" or "17:14". [use24h] is the device's 24 hour
   /// setting, for languages where both are in use.
   String clockTime(DateTime time, {required bool use24h}) {
@@ -608,6 +619,10 @@ class GreekNavigationStrings extends NavigationStrings {
   @override
   String duration(int hours, int minutes) =>
       hours == 0 ? '$minutes λεπ.' : '$hours ώρ. $minutes λεπ.';
+
+  @override
+  String speedUnit(DistanceUnits units) =>
+      units == DistanceUnits.imperial ? 'mph' : 'χλμ/ώ';
 
   // Greece reads the time on the 24 hour clock.
   @override

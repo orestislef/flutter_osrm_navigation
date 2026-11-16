@@ -55,6 +55,8 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
     this.onMarkerColor,
     this.buttonColor,
     this.onButtonColor,
+    this.speedColor,
+    this.onSpeedColor,
   });
 
   /// Background of the banner's main row. Default: primary.
@@ -157,6 +159,12 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
   /// Icons on map buttons. Default: primary.
   final Color? onButtonColor;
 
+  /// The speed badge. Default: surface.
+  final Color? speedColor;
+
+  /// The number on the speed badge. Default: onSurface.
+  final Color? onSpeedColor;
+
   /// The style for [context]: [local] over the theme's extension over the
   /// color scheme.
   static ResolvedNavigationStyle resolve(BuildContext context,
@@ -205,6 +213,8 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onMarkerColor: s.onMarkerColor ?? Colors.white,
       buttonColor: s.buttonColor ?? cs.surface,
       onButtonColor: s.onButtonColor ?? cs.primary,
+      speedColor: s.speedColor ?? cs.surface,
+      onSpeedColor: s.onSpeedColor ?? cs.onSurface,
     );
   }
 
@@ -249,6 +259,8 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onMarkerColor: other.onMarkerColor,
       buttonColor: other.buttonColor,
       onButtonColor: other.onButtonColor,
+      speedColor: other.speedColor,
+      onSpeedColor: other.onSpeedColor,
     );
   }
 
@@ -287,6 +299,8 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
     Color? onMarkerColor,
     Color? buttonColor,
     Color? onButtonColor,
+    Color? speedColor,
+    Color? onSpeedColor,
   }) {
     return NavigationStyle(
       bannerColor: bannerColor ?? this.bannerColor,
@@ -322,6 +336,8 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onMarkerColor: onMarkerColor ?? this.onMarkerColor,
       buttonColor: buttonColor ?? this.buttonColor,
       onButtonColor: onButtonColor ?? this.onButtonColor,
+      speedColor: speedColor ?? this.speedColor,
+      onSpeedColor: onSpeedColor ?? this.onSpeedColor,
     );
   }
 
@@ -368,6 +384,8 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onMarkerColor: c(onMarkerColor, other.onMarkerColor),
       buttonColor: c(buttonColor, other.buttonColor),
       onButtonColor: c(onButtonColor, other.onButtonColor),
+      speedColor: c(speedColor, other.speedColor),
+      onSpeedColor: c(onSpeedColor, other.onSpeedColor),
     );
   }
 }
@@ -412,6 +430,8 @@ class ResolvedNavigationStyle {
     required this.onMarkerColor,
     required this.buttonColor,
     required this.onButtonColor,
+    required this.speedColor,
+    required this.onSpeedColor,
   });
 
   /// See [NavigationStyle.bannerColor].
@@ -512,4 +532,10 @@ class ResolvedNavigationStyle {
 
   /// See [NavigationStyle.onButtonColor].
   final Color onButtonColor;
+
+  /// See [NavigationStyle.speedColor].
+  final Color speedColor;
+
+  /// See [NavigationStyle.onSpeedColor].
+  final Color onSpeedColor;
 }

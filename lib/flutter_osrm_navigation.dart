@@ -21,4 +21,5 @@ export 'src/widgets/banner.dart';
 export 'src/widgets/layers.dart';
 export 'src/widgets/maneuver_icon.dart';
 export 'src/widgets/navigation_map.dart';
+export 'src/widgets/speedometer.dart';
 export 'src/widgets/style.dart';

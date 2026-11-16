@@ -8,6 +8,7 @@ import '../controller.dart';
 import '../geometry.dart';
 import 'banner.dart';
 import 'layers.dart';
+import 'speedometer.dart';
 import 'style.dart';
 
 /// A flutter_map with navigation built in: the route, the stops, the
@@ -61,6 +62,9 @@ class NavigationMap extends StatefulWidget {
     this.showRecenterButton = true,
     this.showStops = true,
     this.showAccuracy = true,
+    this.showSpeed = true,
+    this.speedAlignment = AlignmentDirectional.bottomStart,
+    this.speedPadding = const EdgeInsets.all(16),
     this.positionMarker,
     this.onTap,
     this.onLongPress,
@@ -141,8 +145,20 @@ class NavigationMap extends StatefulWidget {
   /// Draw the stops and the destination.
   final bool showStops;
 
-  /// Draw the GPS accuracy circle when the position is not on the route.
+  /// Draw the GPS accuracy circle around the position. On by default. It
+  /// is left out while the position is drawn on the route line, where a
+  /// circle around the snapped point would mislead.
   final bool showAccuracy;
+
+  /// Show the current speed while navigating, in km/h or mph by
+  /// [NavigationSettings.units]. On by default.
+  final bool showSpeed;
+
+  /// Where the speed sits over the map.
+  final AlignmentGeometry speedAlignment;
+
+  /// Space around the speed, inside the safe area.
+  final EdgeInsetsGeometry speedPadding;
 
   /// Your own position marker, drawn pointing up. See
   /// [NavigationPositionLayer.marker].
@@ -470,6 +486,21 @@ class _NavigationMapState extends State<NavigationMap>
                       style: widget.style,
                       footerActions: widget.bannerActions,
                     ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (widget.showSpeed)
+          Positioned.fill(
+            child: SafeArea(
+              child: Padding(
+                padding: widget.speedPadding,
+                child: Align(
+                  alignment: widget.speedAlignment,
+                  child: NavigationSpeedometer(
+                    controller: _nav,
+                    style: widget.style,
                   ),
                 ),
               ),
