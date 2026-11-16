@@ -203,6 +203,88 @@ void main() {
     });
   });
 
+  group('speed limit sign, stops and following', () {
+    NavRoute limited(double kmh) {
+      final r = testRoute();
+      return NavRoute(
+        points: r.points,
+        steps: r.steps,
+        speedLimitsKmh: [for (var i = 0; i < r.points.length - 1; i++) kmh],
+      );
+    }
+
+    testWidgets('the sign shows with a limit, the badge turns when speeding',
+        (tester) async {
+      final d = Drive();
+      d.start(limited(30));
+      await tester.pumpWidget(app(NavigationSpeedometer(controller: d.nav)));
+      await tester.runAsync(() => d.feed(drive(routePath()).take(3)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed-limit')), findsOneWidget);
+      expect(find.text('30'), findsOneWidget);
+      final badge =
+          tester.widget<Material>(find.byKey(const ValueKey('nav-speed')));
+      final error =
+          Theme.of(tester.element(find.byType(Scaffold))).colorScheme.error;
+      expect(badge.color, error, reason: '36 km/h in a 30');
+
+      await tester.pumpWidget(
+          app(NavigationSpeedometer(controller: d.nav, showSpeedLimit: false)));
+      expect(find.byKey(const ValueKey('nav-speed-limit')), findsNothing);
+    });
+
+    testWidgets('no limit: only the speed', (tester) async {
+      final d = Drive();
+      d.start(testRoute());
+      await tester.pumpWidget(app(NavigationSpeedometer(controller: d.nav)));
+      await tester.runAsync(() => d.feed(drive(routePath()).take(3)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsOneWidget);
+      expect(find.byKey(const ValueKey('nav-speed-limit')), findsNothing);
+    });
+
+    testWidgets('your own stop and destination widgets', (tester) async {
+      final d = Drive();
+      d.start(navRoute(
+          trackStart, [(90, 600, 'A'), (0, 500, 'B'), (90, 400, 'C')],
+          stopsAfter: {0}));
+      await tester.pumpWidget(app(NavigationMap(
+        controller: d.nav,
+        initialCenter: trackStart,
+        initialZoom: 14,
+        stopBuilder: (context, i, p) => Text('stop $i'),
+        destinationBuilder: (context, p) => const Text('home'),
+      )));
+      await tester.pump();
+      expect(find.text('stop 0'), findsOneWidget);
+      expect(find.text('home'), findsOneWidget);
+    });
+
+    testWidgets('following changes are reported, recenter from a key',
+        (tester) async {
+      final d = Drive();
+      d.start(testRoute());
+      final changes = <bool>[];
+      final key = GlobalKey<NavigationMapState>();
+      await tester.runAsync(() => d.feed(drive(routePath()).take(3)));
+      await tester.pumpWidget(app(NavigationMap(
+        key: key,
+        controller: d.nav,
+        initialCenter: trackStart,
+        onFollowingChanged: changes.add,
+      )));
+      await tester.pump();
+      expect(key.currentState!.following, isTrue);
+      await tester.drag(find.byType(FlutterMap), const Offset(0, 200));
+      await tester.pump();
+      expect(changes, [false]);
+      key.currentState!.recenter();
+      await tester.pump(const Duration(seconds: 1));
+      expect(changes, [false, true]);
+      expect(key.currentState!.following, isTrue);
+    });
+  });
+
   group('NavigationSpeedometer', () {
     testWidgets('km/h, mph and the language, only while navigating',
         (tester) async {

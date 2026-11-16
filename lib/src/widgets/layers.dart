@@ -84,6 +84,8 @@ class NavigationStopsLayer extends StatelessWidget {
     required this.controller,
     this.style,
     this.size = 30,
+    this.stopBuilder,
+    this.destinationBuilder,
   });
 
   /// The navigation to draw.
@@ -94,6 +96,14 @@ class NavigationStopsLayer extends StatelessWidget {
 
   /// Marker size.
   final double size;
+
+  /// Your own widget for each stop. [index] is 0 for the first stop of the
+  /// trip.
+  final Widget Function(BuildContext context, int index, LatLng point)?
+      stopBuilder;
+
+  /// Your own widget for the destination.
+  final Widget Function(BuildContext context, LatLng point)? destinationBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -116,29 +126,31 @@ class NavigationStopsLayer extends StatelessWidget {
                 point: stops[i],
                 width: size,
                 height: size,
-                child: _Dot(
-                  color: s.stopColor,
-                  border: s.puckBorderColor,
-                  child: Text(
-                    '${first + i + 1}',
-                    style: TextStyle(
-                      color: s.onMarkerColor,
-                      fontWeight: FontWeight.w800,
-                      fontSize: size * 0.45,
+                child: stopBuilder?.call(context, first + i, stops[i]) ??
+                    _Dot(
+                      color: s.stopColor,
+                      border: s.puckBorderColor,
+                      child: Text(
+                        '${first + i + 1}',
+                        style: TextStyle(
+                          color: s.onMarkerColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: size * 0.45,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
               ),
             Marker(
               point: destination,
               width: size,
               height: size,
-              child: _Dot(
-                color: s.destinationColor,
-                border: s.puckBorderColor,
-                child:
-                    Icon(Icons.flag, color: s.onMarkerColor, size: size * 0.55),
-              ),
+              child: destinationBuilder?.call(context, destination) ??
+                  _Dot(
+                    color: s.destinationColor,
+                    border: s.puckBorderColor,
+                    child: Icon(Icons.flag,
+                        color: s.onMarkerColor, size: size * 0.55),
+                  ),
             ),
           ],
         );

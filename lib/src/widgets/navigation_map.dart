@@ -68,6 +68,11 @@ class NavigationMap extends StatefulWidget {
     this.showStops = true,
     this.showAccuracy = true,
     this.showSpeed = true,
+    this.showSpeedLimit = true,
+    this.stopBuilder,
+    this.destinationBuilder,
+    this.stopSize = 30,
+    this.onFollowingChanged,
     this.speedAlignment = AlignmentDirectional.bottomStart,
     this.speedPadding = const EdgeInsets.all(16),
     this.positionMarker,
@@ -176,6 +181,26 @@ class NavigationMap extends StatefulWidget {
   /// [NavigationSettings.units]. On by default.
   final bool showSpeed;
 
+  /// Show the speed limit sign next to the speed when the router sent
+  /// limits. Without them only the speed shows.
+  final bool showSpeedLimit;
+
+  /// Your own widget for each stop on the way. [index] is 0 for the
+  /// first stop of the trip. A numbered dot when null.
+  final Widget Function(BuildContext context, int index, LatLng point)?
+      stopBuilder;
+
+  /// Your own widget for the destination. A flag in a dot when null.
+  final Widget Function(BuildContext context, LatLng point)? destinationBuilder;
+
+  /// Width and height of the stop and destination markers.
+  final double stopSize;
+
+  /// Called when the camera stops following the position (the user
+  /// moved the map) and when it follows again (the re-center button,
+  /// the wait after a pan, a new navigation, [NavigationMapState.recenter]).
+  final ValueChanged<bool>? onFollowingChanged;
+
   /// Where the speed sits over the map.
   final AlignmentGeometry speedAlignment;
 
@@ -193,10 +218,13 @@ class NavigationMap extends StatefulWidget {
   final void Function(TapPosition tapPosition, LatLng point)? onLongPress;
 
   @override
-  State<NavigationMap> createState() => _NavigationMapState();
+  State<NavigationMap> createState() => NavigationMapState();
 }
 
-class _NavigationMapState extends State<NavigationMap>
+/// The state of a [NavigationMap]. Reach it with a
+/// `GlobalKey<NavigationMapState>` to follow the position again from your
+/// own button.
+class NavigationMapState extends State<NavigationMap>
     with SingleTickerProviderStateMixin {
   static const _gestures = {
     MapEventSource.dragStart,
@@ -216,6 +244,23 @@ class _NavigationMapState extends State<NavigationMap>
   late final AnimationController _glide;
   bool _ready = false;
   bool _following = true;
+
+  /// Whether the camera follows the position.
+  bool get following => _following;
+
+  /// Follows the position again, as the re-center button does.
+  void recenter() => _recenter();
+
+  void _setFollowing(bool value) {
+    if (value == _following) return;
+    if (mounted) {
+      setState(() => _following = value);
+    } else {
+      _following = value;
+    }
+    widget.onFollowingChanged?.call(value);
+  }
+
   bool _wasActive = false;
   bool _noAnimations = false;
   Timer? _recenterTimer;
@@ -256,13 +301,13 @@ class _NavigationMapState extends State<NavigationMap>
   }
 
   @override
-  void didUpdateWidget(NavigationMap old) {
-    super.didUpdateWidget(old);
-    if (!identical(old.controller, widget.controller)) {
-      old.controller.removeListener(_onNav);
+  void didUpdateWidget(NavigationMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller.removeListener(_onNav);
       widget.controller.addListener(_onNav);
     }
-    if (old.glide != widget.glide) _glide.duration = widget.glide;
+    if (oldWidget.glide != widget.glide) _glide.duration = widget.glide;
   }
 
   @override
@@ -294,7 +339,7 @@ class _NavigationMapState extends State<NavigationMap>
 
   void _onNav() {
     final active = _nav.isActive;
-    if (active && !_wasActive) _following = true;
+    if (active && !_wasActive) _setFollowing(true);
     final ended = !active && _wasActive;
     _wasActive = active;
     final target = _nav.displayPosition;
@@ -412,7 +457,7 @@ class _NavigationMapState extends State<NavigationMap>
 
   void _onMapEvent(MapEvent event) {
     if (!_gestures.contains(event.source)) return;
-    if (_following) setState(() => _following = false);
+    _setFollowing(false);
     _recenterTimer?.cancel();
     if (_nav.isActive && widget.recenterAfter > Duration.zero) {
       _recenterTimer = Timer(widget.recenterAfter, () {
@@ -424,7 +469,7 @@ class _NavigationMapState extends State<NavigationMap>
   void _recenter() {
     _recenterTimer?.cancel();
     final here = _nav.displayPosition;
-    setState(() => _following = true);
+    _setFollowing(true);
     if (here == null || !_ready) return;
     _fromPos = _pos ?? here;
     _toPos = here;
@@ -475,7 +520,13 @@ class _NavigationMapState extends State<NavigationMap>
           progressMeters: _along,
         ),
         if (widget.showStops)
-          NavigationStopsLayer(controller: _nav, style: widget.style),
+          NavigationStopsLayer(
+            controller: _nav,
+            style: widget.style,
+            size: widget.stopSize,
+            stopBuilder: widget.stopBuilder,
+            destinationBuilder: widget.destinationBuilder,
+          ),
         NavigationPositionLayer(
           position: _pos,
           heading: _heading,
@@ -523,7 +574,11 @@ class _NavigationMapState extends State<NavigationMap>
           place(
             widget.speedPadding,
             widget.speedAlignment,
-            NavigationSpeedometer(controller: _nav, style: widget.style),
+            NavigationSpeedometer(
+              controller: _nav,
+              style: widget.style,
+              showSpeedLimit: widget.showSpeedLimit,
+            ),
           ),
         if (widget.showRecenterButton &&
             !_following &&
