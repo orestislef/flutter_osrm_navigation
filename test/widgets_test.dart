@@ -230,6 +230,37 @@ void main() {
       expect(find.byKey(const ValueKey('nav-speed')), findsNothing);
     });
 
+    testWidgets('banner, speed and re-center take padding and insets',
+        (tester) async {
+      final d = Drive();
+      d.start(testRoute());
+      await tester.runAsync(() => d.feed(drive(routePath()).take(3)));
+      await tester.pumpWidget(app(NavigationMap(
+        controller: d.nav,
+        initialCenter: trackStart,
+        overlayInsets: const EdgeInsets.only(top: 40, bottom: 100),
+        bannerPadding: const EdgeInsets.only(top: 10),
+        speedPadding: const EdgeInsets.only(left: 20, bottom: 30),
+        recenterAlignment: AlignmentDirectional.topEnd,
+        recenterPadding: const EdgeInsets.only(top: 200, right: 8),
+      )));
+      await tester.pump();
+      final screen = tester.getSize(find.byType(NavigationMap));
+      expect(
+          tester.getTopLeft(find.byKey(const ValueKey('nav-banner'))).dy, 50);
+      final speed =
+          tester.getBottomLeft(find.byKey(const ValueKey('nav-speed')));
+      expect(speed.dx, 20);
+      expect(speed.dy, screen.height - 130);
+
+      await tester.drag(find.byType(FlutterMap), const Offset(0, 200));
+      await tester.pump();
+      final recenter =
+          tester.getTopRight(find.byKey(const ValueKey('nav-recenter')));
+      expect(recenter.dy, 240);
+      expect(recenter.dx, screen.width - 8);
+    });
+
     testWidgets('NavigationMap shows it by default and can hide it',
         (tester) async {
       final d = Drive();

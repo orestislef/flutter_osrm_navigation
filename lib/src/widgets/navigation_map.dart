@@ -60,6 +60,11 @@ class NavigationMap extends StatefulWidget {
     this.showBanner = true,
     this.bannerActions = const [],
     this.showRecenterButton = true,
+    this.recenterAlignment = AlignmentDirectional.bottomEnd,
+    this.recenterPadding = const EdgeInsets.all(16),
+    this.bannerPadding = const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    this.bannerMaxWidth = 560,
+    this.overlayInsets = EdgeInsets.zero,
     this.showStops = true,
     this.showAccuracy = true,
     this.showSpeed = true,
@@ -141,6 +146,23 @@ class NavigationMap extends StatefulWidget {
 
   /// Show the re-center button when not following.
   final bool showRecenterButton;
+
+  /// Where the re-center button sits over the map.
+  final AlignmentGeometry recenterAlignment;
+
+  /// Space around the re-center button, inside the safe area.
+  final EdgeInsetsGeometry recenterPadding;
+
+  /// Space around the banner, inside the safe area.
+  final EdgeInsetsGeometry bannerPadding;
+
+  /// The widest the banner gets (tablets, landscape).
+  final double bannerMaxWidth;
+
+  /// Pushes the banner, the speed and the re-center button in from the
+  /// edges together, for a panel or buttons of your own over the map
+  /// (the height of a bottom sheet, say). On top of each one's padding.
+  final EdgeInsetsGeometry overlayInsets;
 
   /// Draw the stops and the destination.
   final bool showStops;
@@ -465,68 +487,58 @@ class _NavigationMapState extends State<NavigationMap>
       ],
     );
 
+    // The banner, the speed and the re-center button, all inside the safe
+    // area and overlayInsets, each with its own padding on top.
+    Widget place(EdgeInsetsGeometry padding, AlignmentGeometry alignment,
+            Widget child) =>
+        Positioned.fill(
+          child: Padding(
+            padding: widget.overlayInsets,
+            child: SafeArea(
+              child: Padding(
+                padding: padding,
+                child: Align(alignment: alignment, child: child),
+              ),
+            ),
+          ),
+        );
+
     return Stack(
       children: [
         Positioned.fill(child: map),
         if (widget.showBanner)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: NavigationBanner(
-                      controller: _nav,
-                      style: widget.style,
-                      footerActions: widget.bannerActions,
-                    ),
-                  ),
-                ),
+          place(
+            widget.bannerPadding,
+            Alignment.topCenter,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: widget.bannerMaxWidth),
+              child: NavigationBanner(
+                controller: _nav,
+                style: widget.style,
+                footerActions: widget.bannerActions,
               ),
             ),
           ),
         if (widget.showSpeed)
-          Positioned.fill(
-            child: SafeArea(
-              child: Padding(
-                padding: widget.speedPadding,
-                child: Align(
-                  alignment: widget.speedAlignment,
-                  child: NavigationSpeedometer(
-                    controller: _nav,
-                    style: widget.style,
-                  ),
-                ),
-              ),
-            ),
+          place(
+            widget.speedPadding,
+            widget.speedAlignment,
+            NavigationSpeedometer(controller: _nav, style: widget.style),
           ),
         if (widget.showRecenterButton &&
             !_following &&
             _nav.displayPosition != null)
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              left: false,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: FloatingActionButton.extended(
-                  key: const ValueKey('nav-recenter'),
-                  heroTag: null,
-                  backgroundColor: s.buttonColor,
-                  foregroundColor: s.onButtonColor,
-                  onPressed: _recenter,
-                  icon: const Icon(Icons.navigation),
-                  label: Text(_nav.strings.recenter),
-                ),
-              ),
+          place(
+            widget.recenterPadding,
+            widget.recenterAlignment,
+            FloatingActionButton.extended(
+              key: const ValueKey('nav-recenter'),
+              heroTag: null,
+              backgroundColor: s.buttonColor,
+              foregroundColor: s.onButtonColor,
+              onPressed: _recenter,
+              icon: const Icon(Icons.navigation),
+              label: Text(_nav.strings.recenter),
             ),
           ),
         ...widget.overlays,
