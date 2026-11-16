@@ -30,7 +30,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.3
+  flutter_osrm_navigation: ^0.1.4
 ```
 
 ## Quick start
@@ -147,6 +147,49 @@ final router = CallbackRouter(
 
 A router that has no route throws a `RoutingException`.
 
+### Keys, tokens and headers
+
+A server behind a key or a login takes headers. `headers` are the same on every request, `headersBuilder` is asked before every request, for a token that expires:
+
+```dart
+OsrmRouter(
+  baseUrl: 'https://your-osrm-server.example.com',
+  headers: {'X-Api-Key': 'your-key'},
+  headersBuilder: () async => {
+    'Authorization': 'Bearer ${await auth.freshToken()}',
+  },
+)
+
+// Hosted Valhalla that wants the key in the URL
+ValhallaRouter(
+  baseUrl: 'https://valhalla.example.com',
+  queryParameters: {'api_key': 'your-key'},
+)
+```
+
+OSRM takes `queryParameters` too. Keep keys out of source you push, pass them with `--dart-define` or from your backend.
+
+### Rate limits
+
+Public servers (the OSRM demo allows about one request a second) answer HTTP 429 when asked too often. The package does not make it worse:
+
+- A 429 or a server error (5xx) is not retried on the spot. The error says `isRateLimited` or `isServerError` and has the server's `retryAfter`.
+- While navigating, the old route stays on screen and the next reroute waits 15, 30, 60 and at most 120 seconds, or as long as the server's `Retry-After` asks, whichever is longer. Never more than one request at a time.
+- The ETA refresh (every 2 minutes) waits too.
+- `navigateTo` throws, so your app decides:
+
+```dart
+try {
+  await controller.navigateTo(destination);
+} on RoutingException catch (e) {
+  if (e.isRateLimited) {
+    showMessage('Busy, try again in ${e.retryAfter?.inSeconds ?? 30} s');
+  } else {
+    showMessage(e.message);
+  }
+}
+```
+
 ## Colors
 
 Everything takes its colors from your theme. To change some, add a `NavigationStyle` to the theme:
@@ -203,6 +246,8 @@ controller.settings = controller.settings.copyWith(
   units: DistanceUnits.imperial,
 );
 ```
+
+The arrival time in the banner follows the navigation language, not the app's: 24 hour in Greek, the phone's setting in English (`clockTime`).
 
 For another language extend `EnglishNavigationStrings` and override the words. The instruction text is built from small pieces (`turn`, `keep`, `roundabout`, `onStreet`, `inDistance`...), so a translation is mostly a list of short strings. Set `speechLanguage` to the voice's language, for example `fr-FR`.
 
