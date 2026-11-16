@@ -170,6 +170,12 @@ abstract class NavigationStrings {
   /// Banner line while off the route and no new route yet.
   String get offRoute;
 
+  /// Banner line while no GPS fix comes.
+  String get gpsLost => 'Searching for GPS…';
+
+  /// Banner line while fixes come but are too rough to use.
+  String get gpsWeak => 'Weak GPS signal';
+
   /// Label before the maneuver that follows right after the next one.
   String get thenLabel;
 
@@ -635,6 +641,12 @@ class GreekNavigationStrings extends NavigationStrings {
 
   @override
   String get offRoute => 'Εκτός διαδρομής. Νέα διαδρομή σε λίγο.';
+
+  @override
+  String get gpsLost => 'Αναζήτηση σήματος GPS…';
+
+  @override
+  String get gpsWeak => 'Αδύναμο σήμα GPS';
 
   @override
   String get thenLabel => 'Μετά';

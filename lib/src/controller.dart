@@ -97,6 +97,12 @@ class NavigationController extends ChangeNotifier {
   int _nextWaypoint = 0;
   int _waypointsPassed = 0;
 
+  // The GPS signal: when a fix last came, and when one was last used.
+  int? _lastFixAt;
+  int? _lastUsedAt;
+  int _startedAt = 0;
+  GpsSignal _gps = GpsSignal.good;
+
   // Progress.
   NavFix? _lastFix;
   double? _heading;
@@ -145,6 +151,30 @@ class NavigationController extends ChangeNotifier {
 
   /// Whether the voice can speak.
   VoiceState get voiceState => _voice.state;
+
+  /// Why the voice cannot speak, or may not speak well: no engine on the
+  /// device, no voice for the language, a voice not downloaded, no speech on
+  /// this platform. Show the user what to do, then call [recheckVoice] when
+  /// the app comes back.
+  VoiceProblem get voiceProblem {
+    final v = _voice;
+    if (v is DiagnosableVoice) return (v as DiagnosableVoice).problem;
+    return v.state == VoiceState.unavailable
+        ? VoiceProblem.unknown
+        : VoiceProblem.none;
+  }
+
+  /// Looks at the voice again, after the user installed an engine or a
+  /// voice (call it when the app is resumed).
+  Future<void> recheckVoice() async {
+    final v = _voice;
+    if (v is DiagnosableVoice) {
+      await (v as DiagnosableVoice).recheck(_strings.speechLanguage);
+    } else {
+      await v.prepare(_strings.speechLanguage);
+    }
+    _notify();
+  }
 
   /// Whether the user wants the voice. Muting stops what is being said.
   bool get voiceEnabled => _voiceEnabled;
@@ -315,6 +345,37 @@ class NavigationController extends ChangeNotifier {
         speedMps * 3.6 > limit + _settings.speedingToleranceKmh;
   }
 
+  /// How the GPS is doing while navigating: [GpsSignal.weak] when fixes
+  /// come but are all too rough to use, [GpsSignal.lost] when none came
+  /// for [NavigationSettings.gpsLostSeconds]. Kept up to date by
+  /// [checkGps], which `NavigationMap` and `NavigationBanner` call every
+  /// second.
+  GpsSignal get gpsSignal => _gps;
+
+  /// Works out [gpsSignal] for now and reports a change. Call it every
+  /// second or so when you show navigation without the package's
+  /// widgets: a lost signal is the absence of fixes, so nothing else
+  /// would notice it.
+  void checkGps() {
+    if (_disposed) return;
+    final now = _clock();
+    final limit = _settings.gpsLostSeconds * 1000;
+    var signal = GpsSignal.good;
+    if (_active && limit > 0) {
+      final lastFix = _lastFixAt ?? _startedAt;
+      final lastUsed = _lastUsedAt ?? _startedAt;
+      if (now - lastFix > limit) {
+        signal = GpsSignal.lost;
+      } else if (now - lastUsed > limit) {
+        signal = GpsSignal.weak;
+      }
+    }
+    if (signal == _gps) return;
+    _gps = signal;
+    _emit(GpsSignalChanged(signal));
+    _notify();
+  }
+
   /// Where to draw the position: on the line when close to it, else the
   /// last fix.
   LatLng? get displayPosition => snappedPosition ?? _lastFix?.position;
@@ -358,12 +419,16 @@ class NavigationController extends ChangeNotifier {
       _notify();
       return;
     }
+    _lastFixAt = now;
     final match = _matchFix(stamped, line);
     final verdict = _detector.judge(stamped, match, line, destination);
     if (verdict == FixVerdict.bad) {
+      checkGps();
       _notify();
       return;
     }
+    _lastUsedAt = now;
+    checkGps();
     if (_detector.headingReliable) _heading = _detector.heading;
     _lastMatch = match;
     final position = stamped.position;
@@ -525,6 +590,10 @@ class NavigationController extends ChangeNotifier {
     _lastEtaAt = _clock();
     _etaInFlight = false;
     _lastSpeakAt = null;
+    _startedAt = _clock();
+    _lastFixAt = null;
+    _lastUsedAt = null;
+    _gps = GpsSignal.good;
     _active = _steps.isNotEmpty && _line != null && _destination != null;
     if (wasActive) _emit(const NavigationStopped());
     if (_active) _emit(NavigationStarted(route));

@@ -41,6 +41,7 @@ class NavigationSettings {
     this.speakGapMs = 3000,
     this.units = DistanceUnits.metric,
     this.speedingToleranceKmh = 3,
+    this.gpsLostSeconds = 10,
   });
 
   /// Ask for a new route when the user leaves the current one.
@@ -129,6 +130,11 @@ class NavigationSettings {
   /// Over the speed limit by more than this (km/h) counts as speeding.
   final int speedingToleranceKmh;
 
+  /// No usable fix for this many seconds while navigating is a lost GPS
+  /// signal (a garage, a long tunnel, location switched off). 0 turns the
+  /// check off.
+  final int gpsLostSeconds;
+
   /// [movingKmh] in metres per second.
   double get movingMps => movingKmh / 3.6;
 
@@ -162,6 +168,7 @@ class NavigationSettings {
     int? speakGapMs,
     DistanceUnits? units,
     int? speedingToleranceKmh,
+    int? gpsLostSeconds,
   }) {
     return NavigationSettings(
       rerouteEnabled: rerouteEnabled ?? this.rerouteEnabled,
@@ -191,6 +198,7 @@ class NavigationSettings {
       speakGapMs: speakGapMs ?? this.speakGapMs,
       units: units ?? this.units,
       speedingToleranceKmh: speedingToleranceKmh ?? this.speedingToleranceKmh,
+      gpsLostSeconds: gpsLostSeconds ?? this.gpsLostSeconds,
     );
   }
 }

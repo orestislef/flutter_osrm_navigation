@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../controller.dart';
 import '../route.dart';
 import '../voice/voice.dart';
+import '../events.dart';
+import 'gps_ticker.dart';
 import 'maneuver_icon.dart';
 import 'style.dart';
 
@@ -50,15 +52,18 @@ class NavigationBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final step = controller.upcomingStep;
-        if (!controller.isActive || step == null) {
-          return const SizedBox.shrink();
-        }
-        return _build(context, step);
-      },
+    return GpsTicker(
+      controller: controller,
+      child: ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          final step = controller.upcomingStep;
+          if (!controller.isActive || step == null) {
+            return const SizedBox.shrink();
+          }
+          return _build(context, step);
+        },
+      ),
     );
   }
 
@@ -298,7 +303,39 @@ class NavigationBanner extends StatelessWidget {
                 ),
               ),
             ),
-          if (c.offRoute && !recalculating && !arrived)
+          if (c.gpsSignal != GpsSignal.good && !arrived)
+            ColoredBox(
+              key: const ValueKey('nav-gps'),
+              color: s.offRouteColor,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                        c.gpsSignal == GpsSignal.lost
+                            ? Icons.gps_off
+                            : Icons.gps_not_fixed,
+                        size: 18,
+                        color: s.onOffRouteColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          c.gpsSignal == GpsSignal.lost
+                              ? strings.gpsLost
+                              : strings.gpsWeak,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: labelStyle.copyWith(color: s.onOffRouteColor)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (c.offRoute &&
+              !recalculating &&
+              !arrived &&
+              c.gpsSignal == GpsSignal.good)
             ColoredBox(
               key: const ValueKey('nav-off-route'),
               color: s.offRouteColor,

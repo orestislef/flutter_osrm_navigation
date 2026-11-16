@@ -13,6 +13,42 @@ enum VoiceState {
   unavailable,
 }
 
+/// Why the voice cannot speak, or may not speak well, so the app can tell
+/// the user what to do.
+enum VoiceProblem {
+  /// Nothing wrong.
+  none,
+
+  /// No text to speech engine on the device, or it would not start.
+  /// Android: the user needs a TTS app (Google's "Speech Services").
+  noEngine,
+
+  /// The engine has no voice for the language. The user has to add one in
+  /// the system's text to speech settings.
+  languageMissing,
+
+  /// The voice is there but its data is not downloaded (Android). It may
+  /// only speak while online, and the user can download it in the text to
+  /// speech settings. The voice still speaks.
+  notDownloaded,
+
+  /// No speech on this platform or browser.
+  unsupportedPlatform,
+
+  /// The voice does not say (a voice of your own).
+  unknown,
+}
+
+/// A voice that can say why it cannot speak, and look again (after the user
+/// installed a voice and came back to the app).
+abstract class DiagnosableVoice {
+  /// What is wrong, [VoiceProblem.none] when nothing is.
+  VoiceProblem get problem;
+
+  /// Looks again at the engine and the voice for [language].
+  Future<void> recheck(String language);
+}
+
 /// What speaks the directions.
 ///
 /// [TtsNavigationVoice] is the device's text to speech. Implement this to

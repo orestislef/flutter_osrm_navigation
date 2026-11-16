@@ -12,7 +12,7 @@ import 'voice_base.dart';
 /// stream and ducks other audio while it talks. In a browser it waits for a
 /// first tap anywhere. Everywhere it reports a missing voice for the
 /// language rather than reading Greek with an English voice.
-class TtsNavigationVoice implements NavigationVoice {
+class TtsNavigationVoice implements NavigationVoice, DiagnosableVoice {
   /// Creates the voice.
   ///
   /// [speechRate] defaults to a normal pace on each platform (0.5 on
@@ -42,10 +42,33 @@ class TtsNavigationVoice implements NavigationVoice {
   VoiceState _state = VoiceState.unavailable;
   String? _language;
   bool? _hasVoice;
+  bool? _downloaded;
+  VoiceProblem _problem = VoiceProblem.none;
   VoidCallback? _onStateChanged;
 
   @override
   VoiceState get state => _state;
+
+  @override
+  VoiceProblem get problem {
+    if (_problem != VoiceProblem.none) return _problem;
+    if (_hasVoice == false) return VoiceProblem.languageMissing;
+    if (_downloaded == false) return VoiceProblem.notDownloaded;
+    return VoiceProblem.none;
+  }
+
+  @override
+  Future<void> recheck(String language) async {
+    _hasVoice = null;
+    _downloaded = null;
+    _language = null;
+    if (!_ready) {
+      _problem = VoiceProblem.none;
+      await init();
+    }
+    await prepare(language);
+    _onStateChanged?.call();
+  }
 
   @override
   set onStateChanged(VoidCallback? callback) => _onStateChanged = callback;
@@ -67,11 +90,20 @@ class TtsNavigationVoice implements NavigationVoice {
     if ((platform == TargetPlatform.linux ||
         platform == TargetPlatform.windows ||
         platform == TargetPlatform.fuchsia)) {
+      _problem = VoiceProblem.unsupportedPlatform;
       return;
     }
     try {
       final tts = FlutterTts();
       _tts = tts;
+      if (platform == TargetPlatform.android) {
+        // A phone with no TTS app answers with no engines at all.
+        final engines = await tts.getEngines;
+        if (engines is List && engines.isEmpty) {
+          _problem = VoiceProblem.noEngine;
+          return;
+        }
+      }
       await tts.setSpeechRate(speechRate ?? 0.5);
       await tts.setVolume(volume);
       await tts.setPitch(pitch);
@@ -91,8 +123,10 @@ class TtsNavigationVoice implements NavigationVoice {
         await tts.setAudioAttributesForNavigation();
       }
       _ready = true;
+      _problem = VoiceProblem.none;
       _set(_working);
     } catch (e) {
+      _problem = VoiceProblem.noEngine;
       if (kDebugMode) debugPrint('flutter_osrm_navigation: no voice ($e)');
     }
   }
@@ -115,6 +149,16 @@ class TtsNavigationVoice implements NavigationVoice {
       if (answer == false || answer == 0) has = false;
     } catch (_) {}
     _hasVoice = has;
+    _downloaded = null;
+    if (has == true && defaultTargetPlatform == TargetPlatform.android) {
+      // Listed is not the same as on the phone: a voice that is not
+      // downloaded only speaks while online.
+      try {
+        final installed = await _tts?.isLanguageInstalled(language);
+        if (installed == true || installed == 1) _downloaded = true;
+        if (installed == false || installed == 0) _downloaded = false;
+      } catch (_) {}
+    }
     _set(_working);
   }
 

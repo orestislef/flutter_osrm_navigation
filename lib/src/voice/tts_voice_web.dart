@@ -12,7 +12,7 @@ import 'voice_base.dart';
 /// In a browser it waits for a first tap anywhere (browsers only speak
 /// after one), and it reports a missing voice for the language rather than
 /// reading Greek with an English voice.
-class TtsNavigationVoice implements NavigationVoice {
+class TtsNavigationVoice implements NavigationVoice, DiagnosableVoice {
   /// Creates the voice.
   ///
   /// [speechRate] defaults to a normal pace on each platform (0.5 on
@@ -46,6 +46,22 @@ class TtsNavigationVoice implements NavigationVoice {
 
   @override
   VoiceState get state => _state;
+
+  @override
+  VoiceProblem get problem {
+    if (!speechSupported()) return VoiceProblem.unsupportedPlatform;
+    if (_hasVoice == false) return VoiceProblem.languageMissing;
+    return VoiceProblem.none;
+  }
+
+  @override
+  Future<void> recheck(String language) async {
+    _hasVoice = null;
+    _language = null;
+    if (!_ready) await init();
+    await prepare(language);
+    _onStateChanged?.call();
+  }
 
   @override
   set onStateChanged(VoidCallback? callback) => _onStateChanged = callback;

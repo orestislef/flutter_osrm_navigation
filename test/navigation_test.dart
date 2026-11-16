@@ -676,6 +676,70 @@ void main() {
     });
   });
 
+  group('the GPS signal', () {
+    test('lost after gpsLostSeconds without a fix, back with the next',
+        () async {
+      final d = Drive();
+      d.start(testRoute());
+      await d.feed(drive(routePath()).take(3));
+      expect(d.nav.gpsSignal, GpsSignal.good);
+      d.now += 9000;
+      d.nav.checkGps();
+      expect(d.nav.gpsSignal, GpsSignal.good, reason: '9 s is not yet 10');
+      d.now += 2000;
+      d.nav.checkGps();
+      expect(d.nav.gpsSignal, GpsSignal.lost);
+      await d.feed(drive(routePath()).skip(3).take(1));
+      expect(d.nav.gpsSignal, GpsSignal.good);
+      await Drive.settle();
+      expect(d.events.whereType<GpsSignalChanged>().map((e) => e.signal),
+          [GpsSignal.lost, GpsSignal.good]);
+    });
+
+    test('weak while every fix is too rough to use', () async {
+      final d = Drive();
+      d.start(testRoute());
+      await d.feed(drive(routePath()).take(2));
+      await d.feed([
+        for (final f in drive(routePath()).skip(2).take(12))
+          SimFix(f.position, speed: 10, accuracy: 2000),
+      ]);
+      expect(d.nav.gpsSignal, GpsSignal.weak);
+    });
+
+    test('nothing reported while not navigating, or with the check off', () {
+      final d = Drive();
+      d.now += 60000;
+      d.nav.checkGps();
+      expect(d.nav.gpsSignal, GpsSignal.good);
+      final e = Drive(settings: const NavigationSettings(gpsLostSeconds: 0));
+      e.start(testRoute());
+      e.now += 60000;
+      e.nav.checkGps();
+      expect(e.nav.gpsSignal, GpsSignal.good);
+    });
+  });
+
+  group('voice problems', () {
+    test('a voice that tells why, and a recheck', () async {
+      final voice = _DiagnosedVoice()..problem = VoiceProblem.languageMissing;
+      final nav = NavigationController(
+          voice: voice, strings: const GreekNavigationStrings());
+      expect(nav.voiceProblem, VoiceProblem.languageMissing);
+      voice.problem = VoiceProblem.none;
+      await nav.recheckVoice();
+      expect(voice.rechecked, ['el-GR']);
+      expect(nav.voiceProblem, VoiceProblem.none);
+    });
+
+    test('a voice of your own that does not tell', () {
+      final d = Drive();
+      expect(d.nav.voiceProblem, VoiceProblem.none);
+      d.voice.current = VoiceState.unavailable;
+      expect(d.nav.voiceProblem, VoiceProblem.unknown);
+    });
+  });
+
   group('speed limits', () {
     /// The test route with 50 km/h on its first street and 30 on the rest.
     NavRoute limited() {
@@ -818,4 +882,25 @@ void main() {
       await d.complete(testRoute());
     });
   });
+}
+
+class _DiagnosedVoice implements NavigationVoice, DiagnosableVoice {
+  @override
+  VoiceProblem problem = VoiceProblem.none;
+  final rechecked = <String>[];
+
+  @override
+  Future<void> recheck(String language) async => rechecked.add(language);
+  @override
+  VoiceState get state => VoiceState.unavailable;
+  @override
+  set onStateChanged(void Function()? callback) {}
+  @override
+  Future<void> init() async {}
+  @override
+  Future<void> prepare(String language) async {}
+  @override
+  void say(String text, String language) {}
+  @override
+  void stop() {}
 }

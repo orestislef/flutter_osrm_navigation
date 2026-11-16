@@ -142,6 +142,28 @@ class SpeedLimitChanged extends NavigationEvent {
   final double? limitKmh;
 }
 
+/// How the GPS is doing while navigating.
+enum GpsSignal {
+  /// Fixes come and are used.
+  good,
+
+  /// Fixes come but are all too rough to use (approximate location, a
+  /// bad spot between tall buildings).
+  weak,
+
+  /// No fix for `NavigationSettings.gpsLostSeconds`.
+  lost,
+}
+
+/// The GPS signal got weak, was lost, or came back.
+class GpsSignalChanged extends NavigationEvent {
+  /// Creates the event.
+  const GpsSignalChanged(this.signal);
+
+  /// The signal now.
+  final GpsSignal signal;
+}
+
 /// The voice said [text].
 class InstructionSpoken extends NavigationEvent {
   /// Creates the event.

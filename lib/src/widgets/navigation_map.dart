@@ -8,6 +8,7 @@ import '../controller.dart';
 import '../geometry.dart';
 import 'banner.dart';
 import 'layers.dart';
+import 'gps_ticker.dart';
 import 'speedometer.dart';
 import 'style.dart';
 
@@ -556,7 +557,8 @@ class NavigationMapState extends State<NavigationMap>
 
     return Stack(
       children: [
-        Positioned.fill(child: map),
+        // The banner checks the GPS too; this one covers showBanner false.
+        Positioned.fill(child: GpsTicker(controller: _nav, child: map)),
         if (widget.showBanner)
           place(
             widget.bannerPadding,

@@ -18,6 +18,12 @@ enum LocationAccess {
 
   /// Location is switched off on the device.
   serviceDisabled,
+
+  /// Allowed, but only approximate (the user turned "Precise" off, Android
+  /// 12 and up, iOS 14 and up). Fixes are kilometres off, too rough to
+  /// navigate with: navigation leaves them all out. Ask the user to allow
+  /// precise location in the app settings ([NavigationLocation.openSettings]).
+  approximate,
 }
 
 /// GPS fixes for navigation, through geolocator, set up to keep coming with
@@ -38,7 +44,13 @@ class NavigationLocation {
 
   /// Checks that location is on and allowed, and asks for permission when
   /// it can.
-  static Future<LocationAccess> ensurePermission() async {
+  ///
+  /// It also checks the location is precise: approximate location gives
+  /// [LocationAccess.approximate]. On iOS, with [iosPrecisePurposeKey] (a
+  /// key of `NSLocationTemporaryUsageDescriptionDictionary` in Info.plist),
+  /// it first asks iOS for precise location for this session.
+  static Future<LocationAccess> ensurePermission(
+      {String? iosPrecisePurposeKey}) async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       return LocationAccess.serviceDisabled;
     }
@@ -46,13 +58,34 @@ class NavigationLocation {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    return switch (permission) {
+    final access = switch (permission) {
       LocationPermission.always ||
       LocationPermission.whileInUse =>
         LocationAccess.granted,
       LocationPermission.deniedForever => LocationAccess.deniedForever,
       _ => LocationAccess.denied,
     };
+    if (access != LocationAccess.granted) return access;
+    if (await isPrecise()) return LocationAccess.granted;
+    final key = iosPrecisePurposeKey;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS && key != null) {
+      try {
+        await Geolocator.requestTemporaryFullAccuracy(purposeKey: key);
+      } catch (_) {}
+      if (await isPrecise()) return LocationAccess.granted;
+    }
+    return LocationAccess.approximate;
+  }
+
+  /// Whether location is precise. True where the platform does not tell
+  /// (the web, older phones).
+  static Future<bool> isPrecise() async {
+    try {
+      return await Geolocator.getLocationAccuracy() !=
+          LocationAccuracyStatus.reduced;
+    } catch (_) {
+      return true;
+    }
   }
 
   /// Opens the app's settings page, where a permission denied for good can
