@@ -34,7 +34,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.2.0
+  flutter_osrm_navigation: ^0.2.1
 ```
 
 ## Quick start
@@ -284,6 +284,30 @@ NavigationMap(
   autoZoom: true,
   layers: [...],
 )
+```
+
+### When not navigating
+
+The same map works with no route at all, following the position the way it does while navigating. Each part can be turned back:
+
+```dart
+NavigationMap(
+  controller: controller,
+  idleHeadingUp: true,            // turn with the direction of travel above
+                                  // settings.headingKmh, hold the rotation below
+  idleFollowLikeNavigation: true, // zoom with the speed, car low on the screen
+  recenterWhenIdle: true,         // follow again recenterAfter after a pan
+  speedOnlyWhileNavigating: false, // the speed shows whenever there is a fix
+  layers: [...],
+)
+```
+
+To move the camera to a place, say to show where someone is waiting, call `showPoint` through a key. Following stops, the re-center button shows, and following comes back after `recenterAfter` or with the button:
+
+```dart
+final mapKey = GlobalKey<NavigationMapState>();
+
+mapKey.currentState?.showPoint(const LatLng(40.6403, 22.9439), zoom: 16);
 ```
 
 Your own widgets for the stops and the destination, and a say when the camera stops or starts following:
