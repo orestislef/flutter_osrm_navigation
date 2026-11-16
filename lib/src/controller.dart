@@ -874,6 +874,92 @@ class NavigationController extends ChangeNotifier {
     return false;
   }
 
+  /// Adds a stop on the way while navigating: a new route from where the
+  /// car is (the way it is heading) through the stops not reached yet, with
+  /// [point] at [index] among them (the last one when null), to the same
+  /// destination. Comes through [events] as [Rerouted], with no "Navigating
+  /// to" said again.
+  ///
+  /// Throws a [StateError] when not navigating or with no router or fix,
+  /// and a [RoutingException] when the router has no route; the old route
+  /// stays then.
+  Future<NavRoute> addWaypoint(LatLng point, {int? index}) {
+    final stops = [...remainingWaypoints];
+    final at = index == null ? stops.length : index.clamp(0, stops.length);
+    stops.insert(at, point);
+    return _routeThrough(stops);
+  }
+
+  /// Takes stop [index] of [remainingWaypoints] out of the trip, with a new
+  /// route as [addWaypoint] makes one.
+  Future<NavRoute> removeWaypoint(int index) {
+    final stops = [...remainingWaypoints];
+    if (index < 0 || index >= stops.length) {
+      throw RangeError.index(index, stops, 'index');
+    }
+    stops.removeAt(index);
+    return _routeThrough(stops);
+  }
+
+  /// A new route from the last fix through [stops] to the destination, put
+  /// in place of the current one.
+  Future<NavRoute> _routeThrough(List<LatLng> stops) async {
+    final r = router;
+    final to = _destination;
+    final fix = _lastFix;
+    if (!_active || to == null) throw StateError('Not navigating');
+    if (r == null) throw StateError('Changing the stops needs a router');
+    if (fix == null) throw StateError('No position yet');
+    // A reroute that is out answers about the old stops: it is dropped.
+    final seq = ++_routeSeq;
+    final moving = speedMps >= _settings.headingMps;
+    NavRoute route;
+    try {
+      route = await r.route(RouteRequest(
+        points: [fix.position, ...stops, to],
+        headingDeg: moving ? displayHeading : null,
+        headingToleranceDeg: _settings.headingToleranceDegrees,
+      ));
+      if (!route.usable) {
+        throw const RoutingException('The router gave an empty route');
+      }
+    } catch (_) {
+      if (!_disposed && _active && seq == _routeSeq) {
+        // The old route stays, and rerouting can ask again.
+        _gate.reset();
+        _recalculating = false;
+        _notify();
+      }
+      rethrow;
+    }
+    if (_disposed || !_active || seq != _routeSeq) {
+      throw StateError('Navigation changed while the route was asked for');
+    }
+    _routeSeq++;
+    // A reroute that was out is now about an old route.
+    _gate.reset();
+    _recalculating = false;
+    final passed = _waypointsPassed;
+    _setRoute(route, stops);
+    _waypointsPassed = passed;
+    _detector.reset();
+    _offRoute = false;
+    _saidRecalculating = false;
+    _trafficFactor = 1;
+    _lastEtaAt = _clock();
+    _emit(Rerouted(route));
+    _matchStart(fix);
+    _notify();
+    return route;
+  }
+
+  /// Forgets the recent fixes (the last good one, the speed and the
+  /// heading worked out from them), so the next fix is not judged against
+  /// them. For when fixes start coming from somewhere else, a simulated
+  /// drive say: else a first fix far from the last real one looks like a
+  /// GPS jump and is left out. The simulator calls it when it starts.
+  void resetFixHistory() => _detector.forget();
+
   Future<void> _rerouteFrom(NavFix fix) async {
     final r = router;
     final to = _destination;
@@ -1018,6 +1104,18 @@ class NavigationController extends ChangeNotifier {
     if (due == 3 && then != null) text = s.then(text, instructionFor(then));
     if (_speak(text)) _stage[i] = due;
   }
+
+  /// Says [text] through the navigation voice, for alerts of your own
+  /// ("Speed camera in 300 meters"), in the voice and language of the
+  /// prompts. True when it went out.
+  ///
+  /// It stays quiet when the voice is muted ([voiceEnabled]) or cannot
+  /// speak, and while a prompt went out less than
+  /// [NavigationSettings.speakGapMs] ago, so it does not cut off a turn.
+  /// [interrupt] speaks even then. Like the prompts it comes through
+  /// [events] as [InstructionSpoken].
+  bool say(String text, {bool interrupt = false}) =>
+      _speak(text, force: interrupt);
 
   /// Speaks [text] unless muted, the voice cannot, or a prompt went out a
   /// moment ago ([force]: even then). True when it went out.

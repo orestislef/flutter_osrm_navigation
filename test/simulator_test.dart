@@ -45,6 +45,26 @@ void main() {
     });
   });
 
+  test('starts moving when the last real fix was a block away', () {
+    fakeAsync((async) {
+      final nav = controller(async, RecordingVoice())..start(testRoute());
+      // Navigating on the real GPS, 200 m north of where the route starts
+      // (the route snapped to the nearest road), then a simulation.
+      nav.updateLocation(NavFix(offsetBy(trackStart, 0, 200), accuracyM: 5));
+      async.elapse(const Duration(milliseconds: 300));
+      final sim = RouteSimulator(nav, speedKmh: 36)..start();
+      // Judged against that fix, the first simulated ones are 200 m away
+      // within a second or two: faster than any car, so all left out.
+      async.elapse(const Duration(milliseconds: 2500));
+      expect(nav.remainingDistance, closeTo(1480, 5),
+          reason: 'moving from the first simulated fix');
+      async.elapse(const Duration(seconds: 8));
+      expect(nav.remainingDistance, closeTo(1400, 15));
+      expect(nav.gpsSignal, GpsSignal.good);
+      sim.stop();
+    });
+  });
+
   test('stops when navigation stops', () {
     fakeAsync((async) {
       final nav = controller(async, RecordingVoice())..start(testRoute());

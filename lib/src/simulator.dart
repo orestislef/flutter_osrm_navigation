@@ -76,6 +76,9 @@ class RouteSimulator {
   void start() {
     stop();
     _position = null;
+    // The last real fix may be a block away from where the route starts:
+    // judged against it, the first simulated fixes look like GPS jumps.
+    controller.resetFixHistory();
     _rebase(fromStart: true);
     if (_line == null) return;
     controller.addListener(_onController);

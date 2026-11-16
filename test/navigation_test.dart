@@ -676,6 +676,96 @@ void main() {
     });
   });
 
+  group('saying something of your own', () {
+    test('through the voice, after the gap, or at once when asked', () async {
+      final d = Drive();
+      d.start(testRoute(), name: 'Home');
+      expect(d.voice.said, ['Navigating to Home']);
+      expect(d.nav.say('Speed camera ahead'), isFalse,
+          reason: 'right after a prompt, not cutting it off');
+      expect(d.nav.say('Speed camera ahead', interrupt: true), isTrue);
+      d.now += 5000;
+      expect(d.nav.say('Road works in 300 meters'), isTrue);
+      d.nav.voiceEnabled = false;
+      d.now += 5000;
+      expect(d.nav.say('Muted'), isFalse);
+      await Drive.settle();
+      expect(d.voice.said, [
+        'Navigating to Home',
+        'Speed camera ahead',
+        'Road works in 300 meters',
+      ]);
+      expect(d.events.whereType<InstructionSpoken>().map((e) => e.text),
+          contains('Road works in 300 meters'));
+    });
+
+    test('works without navigating too', () {
+      final d = Drive();
+      expect(d.nav.say('Hello'), isTrue);
+      expect(d.voice.said, ['Hello']);
+    });
+  });
+
+  group('changing the stops while navigating', () {
+    test('a stop added and then taken out, each a new route from here',
+        () async {
+      final d = Drive();
+      d.start(testRoute(), name: 'Home', arrival: ArrivalType.pickup);
+      await d.feed(drive(routePath()).take(20)); // 200 m along
+      d.answer = (from) => navRoute(
+          from, [(90, 400, 'Egnatia'), (0, 500, 'Agias Sofias')],
+          stopsAfter: {0});
+      final added = await d.nav.addWaypoint(cornerB);
+      final ask = d.asked.last.request;
+      expect(ask.points, hasLength(3));
+      expect(metresBetween(ask.points.first, offsetBy(trackStart, 90, 200)),
+          lessThan(1));
+      expect(ask.points[1], cornerB);
+      expect(ask.points.last, endD);
+      expect(ask.headingDeg, closeTo(90, 1), reason: 'moving at 36 km/h');
+      expect(d.nav.route, same(added));
+      expect(d.nav.remainingWaypoints, [cornerB]);
+      expect(d.nav.arrival, ArrivalType.pickup);
+      expect(d.nav.destinationName, 'Home');
+
+      d.answer = (from) => navRoute(from, [(90, 400, 'Egnatia')]);
+      await d.nav.removeWaypoint(0);
+      expect(d.asked.last.request.points, hasLength(2));
+      expect(d.nav.remainingWaypoints, isEmpty);
+      await Drive.settle();
+      expect(d.events.whereType<Rerouted>(), hasLength(2));
+      expect(d.voice.said.where((s) => s.startsWith('Navigating to')),
+          hasLength(1),
+          reason: 'not said again');
+    });
+
+    test('the place in the order, and what is refused', () async {
+      final d = Drive();
+      expect(() => d.nav.addWaypoint(cornerA), throwsStateError);
+      d.start(navRoute(
+          trackStart, [(90, 600, 'A'), (0, 500, 'B'), (90, 400, 'C')],
+          stopsAfter: {0}));
+      await d.feed(drive(routePath()).take(3));
+      d.answer = (from) => testRoute();
+      await d.nav.addWaypoint(cornerB, index: 0);
+      expect(d.nav.remainingWaypoints, [cornerB, cornerA]);
+      expect(() => d.nav.removeWaypoint(5), throwsRangeError);
+    });
+
+    test('a router that fails keeps the old route', () async {
+      final d = Drive();
+      final first = testRoute();
+      d.start(first);
+      await d.feed(drive(routePath()).take(3));
+      d.answer = (from) => null;
+      await expectLater(
+          d.nav.addWaypoint(cornerB), throwsA(isA<RoutingException>()));
+      expect(d.nav.route, same(first));
+      expect(d.nav.remainingWaypoints, isEmpty);
+      expect(d.nav.recalculating, isFalse);
+    });
+  });
+
   group('the GPS signal', () {
     test('lost after gpsLostSeconds without a fix, back with the next',
         () async {
