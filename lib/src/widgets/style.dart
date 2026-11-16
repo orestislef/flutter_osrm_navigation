@@ -57,6 +57,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
     this.onButtonColor,
     this.speedColor,
     this.onSpeedColor,
+    this.speedingColor,
+    this.onSpeedingColor,
+    this.speedLimitColor,
   });
 
   /// Background of the banner's main row. Default: primary.
@@ -165,6 +168,15 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
   /// The number on the speed badge. Default: onSurface.
   final Color? onSpeedColor;
 
+  /// The speed badge while over the limit. Default: error.
+  final Color? speedingColor;
+
+  /// The number on it while over the limit. Default: onError.
+  final Color? onSpeedingColor;
+
+  /// The ring of the speed limit sign. Default: a road sign red.
+  final Color? speedLimitColor;
+
   /// The style for [context]: [local] over the theme's extension over the
   /// color scheme.
   static ResolvedNavigationStyle resolve(BuildContext context,
@@ -215,6 +227,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onButtonColor: s.onButtonColor ?? cs.primary,
       speedColor: s.speedColor ?? cs.surface,
       onSpeedColor: s.onSpeedColor ?? cs.onSurface,
+      speedingColor: s.speedingColor ?? cs.error,
+      onSpeedingColor: s.onSpeedingColor ?? cs.onError,
+      speedLimitColor: s.speedLimitColor ?? const Color(0xFFD32F2F),
     );
   }
 
@@ -261,6 +276,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onButtonColor: other.onButtonColor,
       speedColor: other.speedColor,
       onSpeedColor: other.onSpeedColor,
+      speedingColor: other.speedingColor,
+      onSpeedingColor: other.onSpeedingColor,
+      speedLimitColor: other.speedLimitColor,
     );
   }
 
@@ -301,6 +319,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
     Color? onButtonColor,
     Color? speedColor,
     Color? onSpeedColor,
+    Color? speedingColor,
+    Color? onSpeedingColor,
+    Color? speedLimitColor,
   }) {
     return NavigationStyle(
       bannerColor: bannerColor ?? this.bannerColor,
@@ -338,6 +359,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onButtonColor: onButtonColor ?? this.onButtonColor,
       speedColor: speedColor ?? this.speedColor,
       onSpeedColor: onSpeedColor ?? this.onSpeedColor,
+      speedingColor: speedingColor ?? this.speedingColor,
+      onSpeedingColor: onSpeedingColor ?? this.onSpeedingColor,
+      speedLimitColor: speedLimitColor ?? this.speedLimitColor,
     );
   }
 
@@ -386,6 +410,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onButtonColor: c(onButtonColor, other.onButtonColor),
       speedColor: c(speedColor, other.speedColor),
       onSpeedColor: c(onSpeedColor, other.onSpeedColor),
+      speedingColor: c(speedingColor, other.speedingColor),
+      onSpeedingColor: c(onSpeedingColor, other.onSpeedingColor),
+      speedLimitColor: c(speedLimitColor, other.speedLimitColor),
     );
   }
 }
@@ -432,6 +459,9 @@ class ResolvedNavigationStyle {
     required this.onButtonColor,
     required this.speedColor,
     required this.onSpeedColor,
+    required this.speedingColor,
+    required this.onSpeedingColor,
+    required this.speedLimitColor,
   });
 
   /// See [NavigationStyle.bannerColor].
@@ -538,4 +568,13 @@ class ResolvedNavigationStyle {
 
   /// See [NavigationStyle.onSpeedColor].
   final Color onSpeedColor;
+
+  /// See [NavigationStyle.speedingColor].
+  final Color speedingColor;
+
+  /// See [NavigationStyle.onSpeedingColor].
+  final Color onSpeedingColor;
+
+  /// See [NavigationStyle.speedLimitColor].
+  final Color speedLimitColor;
 }
