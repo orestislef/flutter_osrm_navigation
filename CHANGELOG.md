@@ -1,3 +1,10 @@
+## 0.1.9
+
+* `fallbackUrls` on `OsrmRouter` and `ValhallaRouter`: other servers to ask when one is down, too slow, rate limited or failing. Requests stay on the one that answered and go back to the first after `retryMainAfter` (5 minutes), `currentUrl` says which is in use
+* `FallbackRouter` chains routers of any kind, your own Valhalla first and OSRM behind it say. `onNoRoute` also falls over on "no route"
+
+Nothing to change on your side.
+
 ## 0.1.8
 
 * `RouteSimulator` parks at the end: its last fix says speed 0, so the speed badge no longer stays at the simulated speed after the drive. A real GPS already reports 0 when the car stops
