@@ -1,3 +1,10 @@
+## 0.1.5
+
+* The current speed on the map: `NavigationMap(showSpeed: true)` by default, in km/h or mph by `settings.units` and in the navigation language. `NavigationSpeedometer` for your own layout, `speedColor` and `onSpeedColor` in `NavigationStyle`
+* README: every switch on `NavigationMap` in one place, the accuracy circle (`showAccuracy`, on by default) among them
+
+Nothing to change on your side. To keep the map as before pass `showSpeed: false`.
+
 ## 0.1.4
 
 * Rate limits are handled: a 429 or a server error is not retried on the spot, `RoutingException` has `isRateLimited`, `isServerError` and the server's `retryAfter`, and reroutes and ETA refreshes wait at least as long as `Retry-After` asks
