@@ -34,7 +34,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.2.1
+  flutter_osrm_navigation: ^0.2.2
 ```
 
 ## Quick start
@@ -104,6 +104,16 @@ await controller.navigateTo(
   destinationName: 'Home', // "Navigating to Home"
 );
 ```
+
+Stops can change on the way. Each change is a new route from where the car is, the way it is heading, through the stops not reached yet, to the same destination:
+
+```dart
+await controller.addWaypoint(newStop);            // last of the stops
+await controller.addWaypoint(newStop, index: 0);  // or the next one
+await controller.removeWaypoint(0);               // index in remainingWaypoints
+```
+
+It comes through `events` as `Rerouted`, and "Navigating to" is not said again. When the router has no route the old one stays and the call throws.
 
 ## Routers
 
@@ -331,17 +341,7 @@ NavigationMap(
 mapKey.currentState?.recenter();
 ```
 
-### Speed limits
-
-When the route comes with limits, a round sign shows next to the speed and the speed turns red while over it (by more than `settings.speedingToleranceKmh`, 3 by default). Without limits only the speed shows.
-
-Limits come from a `maxspeed` annotation on the route, the way Mapbox compatible servers send it. Plain OSRM (and its public demo) does not have it, so `OsrmRouter` only asks for it when told to:
-
-```dart
-OsrmRouter(baseUrl: 'https://your-server.example.com', speedLimits: true)
-```
-
-A server that turns the option down is asked again without it, once. Routes from Valhalla or your own backend through `CallbackRouter` that carry `annotation.maxspeed` are read either way. The controller has `speedLimitKmh`, `speeding` and a `SpeedLimitChanged` event for your own UI.
+Stop and destination markers, yours included, stay upright when the map turns with the road. They need no turning back of their own.
 
 Each part also takes its own place and spacing, inside the safe area, for when your app has buttons or a panel over the map:
 
@@ -360,7 +360,24 @@ NavigationMap(
 )
 ```
 
+`positionAt` and `overlayInsets` can change at any time, with a panel the user drags say: the camera moves to the new place at once, not at the next fix.
+
+`crs` and `cameraConstraint` go to flutter_map as they are, for a projection of your own (one that does not repeat the world, say) or a camera kept inside an area. Without them the map is flutter_map's default.
+
 The speed follows the units and the language: `km/h` in English, `χλμ/ώ` in Greek, `mph` with `DistanceUnits.imperial`. `NavigationSpeedometer(controller: controller)` is the same badge for your own layout.
+It also works with no route at all, from a controller you only feed fixes: `NavigationSpeedometer(controller: controller, onlyWhileNavigating: false)`.
+
+### Speed limits
+
+When the route comes with limits, a round sign shows next to the speed and the speed turns red while over it (by more than `settings.speedingToleranceKmh`, 3 by default). Without limits only the speed shows.
+
+Limits come from a `maxspeed` annotation on the route, the way Mapbox compatible servers send it. Plain OSRM (and its public demo) does not have it, so `OsrmRouter` only asks for it when told to:
+
+```dart
+OsrmRouter(baseUrl: 'https://your-server.example.com', speedLimits: true)
+```
+
+A server that turns the option down is asked again without it, once. Routes from Valhalla or your own backend through `CallbackRouter` that carry `annotation.maxspeed` are read either way. The controller has `speedLimitKmh`, `speeding` and a `SpeedLimitChanged` event for your own UI.
 
 ## Language and units
 
@@ -468,6 +485,34 @@ A few things worth knowing, all seen on a real Android 15 phone:
 - **Google Play.** An app with a location foreground service has to declare it in the Play Console (App content, foreground service permissions). Navigation is an accepted use, describe it as turn-by-turn directions.
 - **Battery savers.** Some makers (Xiaomi, Huawei, Samsung's sleeping apps) stop foreground services on their own. If users report navigation stopping in the background, point them at [dontkillmyapp.com](https://dontkillmyapp.com).
 
+#### The next turn in a notification
+
+The location service's notification is set when the stream starts and does not change while it runs. To show the next turn and the arrival time in the notification shade, post a notification of your own (with [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications), say) and update it from the events:
+
+```dart
+controller.events.listen((event) {
+  if (event is StepChanged || event is EtaUpdated || event is Rerouted) {
+    notifications.show(
+      1,
+      controller.upcomingInstruction,
+      '${controller.strings.shortDuration(controller.remainingDuration.inSeconds.toDouble())}'
+      ' · ${controller.strings.arrivalTime(controller.strings.clockTime(controller.estimatedArrival!, use24h: true))}',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'navigation', 'Navigation',
+          ongoing: true, onlyAlertOnce: true, importance: Importance.low,
+        ),
+      ),
+    );
+  }
+  if (event is NavigationStopped || event is DestinationReached) {
+    notifications.cancel(1);
+  }
+});
+```
+
+`onlyAlertOnce` keeps it from buzzing on every update. Update on `StepChanged` rather than every `ProgressUpdated`, Android throttles apps that post too often.
+
 ### iOS
 
 Add to `ios/Runner/Info.plist`:
@@ -502,7 +547,16 @@ controller.addListener(() {
 
 Browsers only speak after the page had a tap. The first tap anywhere unlocks the voice, and until then the banner shows a "Tap for voice" row.
 
-Mute and unmute with `controller.voiceEnabled`. To send prompts somewhere else implement `NavigationVoice`, or use `SilentNavigationVoice` to keep them quiet.
+Mute and unmute with `controller.voiceEnabled`.
+
+Alerts of your own go through the same voice, language and mute:
+
+```dart
+controller.say('Speed camera in 300 meters');
+controller.say('Road closed ahead', interrupt: true);
+```
+
+`say` keeps quiet for `settings.speakGapMs` after a prompt so it does not cut a turn off, unless `interrupt` is true. It returns whether it spoke, and comes through `events` as `InstructionSpoken` like the prompts. To send prompts somewhere else implement `NavigationVoice`, or use `SilentNavigationVoice` to keep them quiet.
 
 ### When the voice is missing
 
@@ -658,7 +712,7 @@ simulator.missTurn();   // goes straight on, off the route
 simulator.turnAround(); // drives back along the route, the wrong way
 ```
 
-It drives the route, follows reroutes, and stops at the end. `missTurn` and `turnAround` are there to watch the rerouting: the controller says "Recalculating the route", asks the router for a new route that starts the way the car is going, and the simulator carries on along it. Do not feed real fixes at the same time.
+It drives the route, follows reroutes, and stops at the end. `missTurn` and `turnAround` are there to watch the rerouting: the controller says "Recalculating the route", asks the router for a new route that starts the way the car is going, and the simulator carries on along it. Do not feed real fixes at the same time. `start` forgets the recent real fixes (`controller.resetFixHistory()`), so a simulation that starts a block away from the last GPS position is not taken for a GPS jump.
 
 The example app has buttons for all of this.
 
