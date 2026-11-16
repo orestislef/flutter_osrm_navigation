@@ -1,3 +1,14 @@
+## 0.2.0
+
+What can go wrong on a real phone, said out loud so the app can help the user:
+
+* `controller.voiceProblem`: `noEngine`, `languageMissing`, `notDownloaded` (Android, the voice speaks only online) or `unsupportedPlatform`, and `recheckVoice()` for when the user comes back from installing one. The README shows how to open the install screens on Android
+* `LocationAccess.approximate` when the user turned "Precise" off: those fixes are kilometres off and navigation cannot use them. `NavigationLocation.isPrecise()`, and on iOS `ensurePermission(iosPrecisePurposeKey: ...)` asks for precise location for the session
+* `controller.gpsSignal` (`good`, `weak`, `lost`), `GpsSignalChanged`, and a "Searching for GPS…" or "Weak GPS signal" line in the banner, after `settings.gpsLostSeconds` (10) without a usable fix
+* README: what the package does in each of these cases
+
+If you `switch` over `LocationAccess`, add a case for `approximate`.
+
 ## 0.1.9
 
 * `fallbackUrls` on `OsrmRouter` and `ValhallaRouter`: other servers to ask when one is down, too slow, rate limited or failing. Requests stay on the one that answered and go back to the first after `retryMainAfter` (5 minutes), `currentUrl` says which is in use
