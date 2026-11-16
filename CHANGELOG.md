@@ -1,3 +1,13 @@
+## 0.1.4
+
+* Rate limits are handled: a 429 or a server error is not retried on the spot, `RoutingException` has `isRateLimited`, `isServerError` and the server's `retryAfter`, and reroutes and ETA refreshes wait at least as long as `Retry-After` asks
+* Every routing error keeps its HTTP status
+* `headersBuilder` on both routers, asked before every request, for tokens that expire
+* `ValhallaRouter` takes `queryParameters`, for hosted servers that want the key in the URL
+* README: keys, tokens and rate limits, and fresh screenshots of the arrival and of the Greek banner
+
+Nothing to change on your side.
+
 ## 0.1.3
 
 * WebAssembly ready: on the web the voice now uses the browser's own speech directly, and flutter_tts is only loaded on phones and desktops. Same `TtsNavigationVoice`, nothing to change on your side
