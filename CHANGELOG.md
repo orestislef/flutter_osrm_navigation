@@ -1,3 +1,12 @@
+## 0.1.7
+
+* Speed limit sign next to the speed, from the route's `maxspeed` annotation, and the speed in `speedingColor` while over it. Without limits only the speed shows. `OsrmRouter(speedLimits: true)` asks for them on servers that support it, `speedLimitKmh`, `speeding` and `SpeedLimitChanged` on the controller
+* `stopBuilder` and `destinationBuilder` for your own stop and destination widgets
+* `onFollowingChanged` on `NavigationMap`, and `NavigationMapState.recenter()` through a `GlobalKey`
+* README: an animation of a drive, and a screenshot with the speed
+
+Nothing to change on your side.
+
 ## 0.1.6
 
 * Spacing for everything over the map: `bannerPadding`, `bannerMaxWidth`, `recenterPadding`, `recenterAlignment` (next to `speedPadding` and `speedAlignment`), and `overlayInsets` that pushes the banner, the speed and the re-center button in together, for buttons or a panel of your own
