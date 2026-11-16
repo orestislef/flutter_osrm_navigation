@@ -188,7 +188,6 @@ class _NavigationPageState extends State<NavigationPage> {
         to,
         from: from,
         via: List.of(_stops),
-        destinationName: 'the pin',
       );
       if (simulate) _sim.start();
     } catch (e) {
