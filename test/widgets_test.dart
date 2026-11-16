@@ -203,6 +203,74 @@ void main() {
     });
   });
 
+  group('NavigationMap options', () {
+    testWidgets('stop and destination markers stay upright', (tester) async {
+      final d = Drive();
+      d.start(navRoute(
+          trackStart, [(90, 600, 'A'), (0, 500, 'B'), (90, 400, 'C')],
+          stopsAfter: {0}));
+      await tester.pumpWidget(app(NavigationMap(
+        controller: d.nav,
+        initialCenter: trackStart,
+        stopBuilder: (context, i, p) => const Text('stop'),
+      )));
+      await tester.pump();
+      final layer = tester.widget<MarkerLayer>(find.descendant(
+          of: find.byType(NavigationStopsLayer),
+          matching: find.byType(MarkerLayer)));
+      expect(layer.markers, hasLength(2));
+      expect(layer.markers.every((m) => m.rotate == true), isTrue);
+    });
+
+    testWidgets('takes a projection and a camera constraint', (tester) async {
+      final d = Drive();
+      final bounds =
+          LatLngBounds(const LatLng(40.5, 22.8), const LatLng(40.8, 23.1));
+      final constraint = CameraConstraint.contain(bounds: bounds);
+      await tester.pumpWidget(app(NavigationMap(
+        controller: d.nav,
+        initialCenter: trackStart,
+        crs: const Epsg4326(),
+        cameraConstraint: constraint,
+      )));
+      final options =
+          tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
+      expect(options.crs, isA<Epsg4326>());
+      expect(options.cameraConstraint, same(constraint));
+
+      await tester.pumpWidget(
+          app(NavigationMap(controller: d.nav, initialCenter: trackStart)));
+      final plain = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
+      expect(plain.crs, isA<Epsg3857>(), reason: 'unchanged by default');
+    });
+
+    testWidgets('a new positionAt moves the camera without a new fix',
+        (tester) async {
+      final d = Drive();
+      Widget map(double at) => app(NavigationMap(
+          controller: d.nav, initialCenter: trackStart, positionAt: at));
+      await tester.pumpWidget(map(0.7));
+      await tester.pump();
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(3)));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      double carAt() {
+        final cam =
+            MapCamera.of(tester.element(find.byType(NavigationPositionLayer)));
+        return cam.latLngToScreenOffset(d.nav.displayPosition!).dy /
+            cam.nonRotatedSize.height;
+      }
+
+      expect(carAt(), closeTo(0.7, 0.02));
+      await tester.pumpWidget(map(0.4));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(carAt(), closeTo(0.4, 0.02));
+    });
+  });
+
   group('NavigationMap when not navigating', () {
     MapCamera camera(WidgetTester tester) =>
         MapCamera.of(tester.element(find.byType(NavigationPositionLayer)));

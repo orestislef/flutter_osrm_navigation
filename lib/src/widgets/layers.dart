@@ -98,7 +98,7 @@ class NavigationStopsLayer extends StatelessWidget {
   final double size;
 
   /// Your own widget for each stop. [index] is 0 for the first stop of the
-  /// trip.
+  /// trip. Stop and destination markers stay upright when the map turns.
   final Widget Function(BuildContext context, int index, LatLng point)?
       stopBuilder;
 
@@ -124,6 +124,8 @@ class NavigationStopsLayer extends StatelessWidget {
             for (var i = 0; i < stops.length; i++)
               Marker(
                 point: stops[i],
+                // Upright on a map turned heading up.
+                rotate: true,
                 width: size,
                 height: size,
                 child: stopBuilder?.call(context, first + i, stops[i]) ??
@@ -142,6 +144,7 @@ class NavigationStopsLayer extends StatelessWidget {
               ),
             Marker(
               point: destination,
+              rotate: true,
               width: size,
               height: size,
               child: destinationBuilder?.call(context, destination) ??

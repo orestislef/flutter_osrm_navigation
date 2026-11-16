@@ -48,6 +48,8 @@ class NavigationMap extends StatefulWidget {
     this.initialCenter,
     this.initialZoom = 16,
     this.minZoom = 3,
+    this.crs,
+    this.cameraConstraint,
     this.maxZoom = 19,
     this.headingUp = true,
     this.autoZoom = true,
@@ -110,6 +112,14 @@ class NavigationMap extends StatefulWidget {
 
   /// The zoom the map opens at.
   final double initialZoom;
+
+  /// The map projection. Web Mercator (`Epsg3857`) when null, as in
+  /// flutter_map. Pass one that does not repeat the world if your app
+  /// needs that.
+  final Crs? crs;
+
+  /// Limits on where the camera can go. None when null.
+  final CameraConstraint? cameraConstraint;
 
   /// The least zoom.
   final double minZoom;
@@ -210,11 +220,13 @@ class NavigationMap extends StatefulWidget {
   final bool showSpeedLimit;
 
   /// Your own widget for each stop on the way. [index] is 0 for the
-  /// first stop of the trip. A numbered dot when null.
+  /// first stop of the trip. A numbered dot when null. It stays upright
+  /// when the map turns, no need to turn it back yourself.
   final Widget Function(BuildContext context, int index, LatLng point)?
       stopBuilder;
 
-  /// Your own widget for the destination. A flag in a dot when null.
+  /// Your own widget for the destination. A flag in a dot when null. It
+  /// stays upright when the map turns.
   final Widget Function(BuildContext context, LatLng point)? destinationBuilder;
 
   /// Width and height of the stop and destination markers.
@@ -393,6 +405,15 @@ class NavigationMapState extends State<NavigationMap>
       widget.controller.addListener(_onNav);
     }
     if (oldWidget.glide != widget.glide) _glide.duration = widget.glide;
+    // Where the car sits changed (a panel was dragged, say): place the
+    // camera again now, not at the next fix, which may not come soon.
+    if (_following &&
+        (oldWidget.positionAt != widget.positionAt ||
+            oldWidget.overlayInsets != widget.overlayInsets)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _following) _recenter();
+      });
+    }
   }
 
   @override
@@ -618,6 +639,9 @@ class NavigationMapState extends State<NavigationMap>
             widget.initialCenter ?? _nav.displayPosition ?? const LatLng(0, 0),
         initialZoom: widget.initialZoom,
         minZoom: widget.minZoom,
+        crs: widget.crs ?? const Epsg3857(),
+        cameraConstraint:
+            widget.cameraConstraint ?? const CameraConstraint.unconstrained(),
         maxZoom: widget.maxZoom,
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
