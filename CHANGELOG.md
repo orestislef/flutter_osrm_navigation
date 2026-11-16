@@ -1,3 +1,7 @@
+## 0.1.8
+
+* `RouteSimulator` parks at the end: its last fix says speed 0, so the speed badge no longer stays at the simulated speed after the drive. A real GPS already reports 0 when the car stops
+
 ## 0.1.7
 
 * Speed limit sign next to the speed, from the route's `maxspeed` annotation, and the speed in `speedingColor` while over it. Without limits only the speed shows. `OsrmRouter(speedLimits: true)` asks for them on servers that support it, `speedLimitKmh`, `speeding` and `SpeedLimitChanged` on the controller
