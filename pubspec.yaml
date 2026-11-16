@@ -1,6 +1,6 @@
 name: flutter_osrm_navigation
 description: Turn-by-turn navigation for flutter_map on any OSRM or Valhalla server. Off-route rerouting, voice prompts, a banner and map layers you can recolor.
-version: 0.1.5
+version: 0.1.6
 homepage: https://github.com/orestislef/flutter_osrm_navigation
 repository: https://github.com/orestislef/flutter_osrm_navigation
 issue_tracker: https://github.com/orestislef/flutter_osrm_navigation/issues

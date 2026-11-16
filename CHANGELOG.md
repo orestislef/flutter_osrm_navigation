@@ -1,3 +1,9 @@
+## 0.1.6
+
+* Spacing for everything over the map: `bannerPadding`, `bannerMaxWidth`, `recenterPadding`, `recenterAlignment` (next to `speedPadding` and `speedAlignment`), and `overlayInsets` that pushes the banner, the speed and the re-center button in together, for buttons or a panel of your own
+
+Nothing to change on your side, the defaults are the old spacing.
+
 ## 0.1.5
 
 * The current speed on the map: `NavigationMap(showSpeed: true)` by default, in km/h or mph by `settings.units` and in the navigation language. `NavigationSpeedometer` for your own layout, `speedColor` and `onSpeedColor` in `NavigationStyle`
