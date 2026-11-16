@@ -25,6 +25,7 @@ void main() {
       expect(sim.isRunning, isFalse);
       expect(voice.said.first, 'In 600 meters, turn left onto Agias Sofias');
       expect(voice.said.last, 'You are at the destination');
+      expect(nav.speedMps, 0, reason: 'parked at the end, not still at 36');
     });
   });
 

@@ -142,7 +142,10 @@ class RouteSimulator {
         if (_along >= line.lengthM) {
           _along = line.lengthM;
           _emit();
+          // Parked at the end: the last fix stands still, as a real GPS
+          // keeps saying once the car stops.
           stop();
+          _emitAt(line.pointAt(_along), line.bearingAt(_along), speedMps: 0);
           return;
         }
       case SimulatorMode.straight:
@@ -173,11 +176,11 @@ class RouteSimulator {
     _emitAt(_position!, _heading);
   }
 
-  void _emitAt(LatLng p, double heading) {
+  void _emitAt(LatLng p, double heading, {double? speedMps}) {
     controller.updateLocation(NavFix(
       p,
       accuracyM: accuracyM,
-      speedMps: speedKmh / 3.6,
+      speedMps: speedMps ?? speedKmh / 3.6,
       headingDeg: heading,
     ));
   }
