@@ -69,6 +69,10 @@ class NavigationMap extends StatefulWidget {
     this.showStops = true,
     this.showAccuracy = true,
     this.showSpeed = true,
+    this.speedOnlyWhileNavigating = false,
+    this.idleHeadingUp = true,
+    this.idleFollowLikeNavigation = true,
+    this.recenterWhenIdle = true,
     this.showSpeedLimit = true,
     this.stopBuilder,
     this.destinationBuilder,
@@ -178,9 +182,28 @@ class NavigationMap extends StatefulWidget {
   /// circle around the snapped point would mislead.
   final bool showAccuracy;
 
-  /// Show the current speed while navigating, in km/h or mph by
+  /// Show the current speed, in km/h or mph by
   /// [NavigationSettings.units]. On by default.
   final bool showSpeed;
+
+  /// Show the speed only while navigating. Off by default: the speed shows
+  /// whenever there is a fix. The speed limit needs a route either way.
+  final bool speedOnlyWhileNavigating;
+
+  /// When not navigating, turn the map with the direction of travel while
+  /// following, once the car moves faster than
+  /// [NavigationSettings.headingKmh]. Slower than that the map keeps its
+  /// rotation, so it does not spin at a red light. False keeps north up.
+  final bool idleHeadingUp;
+
+  /// When not navigating, follow the way navigation does: zoom with the
+  /// speed ([autoZoom]) and keep the car at [positionAt]. False keeps the
+  /// zoom the user picked and the car in the middle.
+  final bool idleFollowLikeNavigation;
+
+  /// When not navigating, follow again [recenterAfter] after the user
+  /// moved the map, as while navigating.
+  final bool recenterWhenIdle;
 
   /// Show the speed limit sign next to the speed when the router sent
   /// limits. Without them only the speed shows.
@@ -226,7 +249,7 @@ class NavigationMap extends StatefulWidget {
 /// `GlobalKey<NavigationMapState>` to follow the position again from your
 /// own button.
 class NavigationMapState extends State<NavigationMap>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _gestures = {
     MapEventSource.dragStart,
     MapEventSource.onDrag,
@@ -243,6 +266,15 @@ class NavigationMapState extends State<NavigationMap>
   MapController get _map => widget.mapController ?? (_own ??= MapController());
 
   late final AnimationController _glide;
+  late final AnimationController _fly;
+  LatLng? _flyFrom;
+  LatLng? _flyTo;
+  double _flyFromZoom = 0;
+  double _flyToZoom = 0;
+
+  // Where the camera was when following started again, so it eases over
+  // instead of jumping (the first fix, the map opening, re-center).
+  LatLng? _blendFrom;
   bool _ready = false;
   bool _following = true;
 
@@ -251,6 +283,55 @@ class NavigationMapState extends State<NavigationMap>
 
   /// Follows the position again, as the re-center button does.
   void recenter() => _recenter();
+
+  /// Stops following and moves the camera to [point], at [zoom] or the
+  /// zoom the map has. The re-center button shows, and following comes
+  /// back by itself after [NavigationMap.recenterAfter], as after a pan.
+  void showPoint(LatLng point, {double? zoom}) {
+    _setFollowing(false);
+    _armRecenter();
+    if (!_ready) return;
+    _glide.stop();
+    final camera = _map.camera;
+    _flyFrom = camera.center;
+    _flyTo = point;
+    _flyFromZoom = camera.zoom;
+    _flyToZoom = zoom ?? camera.zoom;
+    if (_noAnimations) {
+      _fly.value = 1;
+      _onFly();
+    } else {
+      _fly.forward(from: 0);
+    }
+  }
+
+  void _onFly() {
+    final from = _flyFrom;
+    final to = _flyTo;
+    if (from == null || to == null || !_ready || !mounted || _following) {
+      return;
+    }
+    final t = Curves.easeInOut.transform(_fly.value);
+    _map.move(
+      LatLng(from.latitude + (to.latitude - from.latitude) * t,
+          from.longitude + (to.longitude - from.longitude) * t),
+      _flyFromZoom + (_flyToZoom - _flyFromZoom) * t,
+    );
+  }
+
+  /// Starts the wait after which following comes back on its own.
+  void _armRecenter() {
+    _recenterTimer?.cancel();
+    if (widget.recenterAfter <= Duration.zero) return;
+    if (!_nav.isActive && !widget.recenterWhenIdle) return;
+    _recenterTimer = Timer(widget.recenterAfter, () {
+      if (mounted &&
+          !_following &&
+          (_nav.isActive || widget.recenterWhenIdle)) {
+        _recenter();
+      }
+    });
+  }
 
   void _setFollowing(bool value) {
     if (value == _following) return;
@@ -289,6 +370,9 @@ class NavigationMapState extends State<NavigationMap>
     super.initState();
     _glide = AnimationController(vsync: this, duration: widget.glide)
       ..addListener(_onTick);
+    _fly = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700))
+      ..addListener(_onFly);
     _wasActive = widget.controller.isActive;
     _pos = widget.controller.displayPosition;
     _heading = widget.controller.displayHeading;
@@ -316,15 +400,20 @@ class NavigationMapState extends State<NavigationMap>
     widget.controller.removeListener(_onNav);
     _recenterTimer?.cancel();
     _glide.dispose();
+    _fly.dispose();
     _own?.dispose();
     super.dispose();
   }
 
   NavigationController get _nav => widget.controller;
 
+  /// Following follows the way navigation does: while navigating, or
+  /// idle with [NavigationMap.idleFollowLikeNavigation].
+  bool get _likeNavigation => _nav.isActive || widget.idleFollowLikeNavigation;
+
   double _targetZoom() {
     final current = _ready ? _map.camera.zoom : widget.initialZoom;
-    if (!_nav.isActive || !widget.autoZoom) return current;
+    if (!_likeNavigation || !widget.autoZoom) return current;
     final kmh = _nav.speedMps * 3.6;
     final span = widget.fastKmh - widget.slowKmh;
     final t = span <= 0 ? 0.0 : ((kmh - widget.slowKmh) / span).clamp(0.0, 1.0);
@@ -333,14 +422,24 @@ class NavigationMapState extends State<NavigationMap>
 
   double _targetRotation(double? heading) {
     final current = _ready ? _map.camera.rotation : 0.0;
-    if (!_nav.isActive) return _following ? 0 : current;
-    if (!widget.headingUp) return 0;
-    return heading == null ? current : -heading;
+    if (!_following) return current;
+    if (_nav.isActive) {
+      if (!widget.headingUp) return 0;
+      return heading == null ? current : -heading;
+    }
+    if (!widget.idleHeadingUp) return 0;
+    // Not navigating there is no road to turn with: only a heading the car
+    // is moving fast enough to trust, else the map keeps its rotation.
+    if (heading == null || _nav.speedMps < _nav.settings.headingMps) {
+      return current;
+    }
+    return -heading;
   }
 
   void _onNav() {
     final active = _nav.isActive;
-    if (active && !_wasActive) _setFollowing(true);
+    final started = active && !_wasActive;
+    if (started) _setFollowing(true);
     final ended = !active && _wasActive;
     _wasActive = active;
     final target = _nav.displayPosition;
@@ -349,8 +448,8 @@ class NavigationMapState extends State<NavigationMap>
     final moved = target != _toPos ||
         heading != _toHeading ||
         !identical(_nav.routeLine, _line);
-    if (!moved && !ended) return;
-    _startGlide(target, heading);
+    if (!moved && !ended && !started) return;
+    _startGlide(target, heading, ease: started);
   }
 
   /// Sets up the glide along the route line, or a cut at the controller's
@@ -377,8 +476,16 @@ class NavigationMapState extends State<NavigationMap>
     if (_fromAlong == null) _along = _toAlong;
   }
 
-  void _startGlide(LatLng target, double? heading) {
-    final jump = _pos == null ||
+  /// Glides the position (and the camera, while following) to [target].
+  /// With [ease], or for the very first fix, the camera eases over from
+  /// where it is instead of jumping.
+  void _startGlide(LatLng target, double? heading, {bool ease = false}) {
+    final first = _pos == null;
+    final canAnimate = !_noAnimations && widget.glide > Duration.zero;
+    if ((first || ease) && canAnimate && _ready && _following) {
+      _blendFrom = _map.camera.center;
+    }
+    final jump = first ||
         _noAnimations ||
         widget.glide == Duration.zero ||
         metresBetween(_pos!, target) > 1000;
@@ -393,7 +500,7 @@ class NavigationMapState extends State<NavigationMap>
     }
     _toZoom = _targetZoom();
     _toRot = _targetRotation(heading);
-    if (jump) {
+    if (jump && _blendFrom == null) {
       _glide.value = 1;
       _onTick();
     } else {
@@ -438,14 +545,24 @@ class NavigationMapState extends State<NavigationMap>
     if (_following && _ready) {
       final zoom = _fromZoom + (_toZoom - _fromZoom) * t;
       final rotation = _lerpAngle(_fromRot, _toRot, t);
-      _map.moveAndRotate(_centerFor(pos, zoom, rotation), zoom, rotation);
+      var center = _centerFor(pos, zoom, rotation);
+      final blend = _blendFrom;
+      if (blend != null) {
+        final e = Curves.easeInOut.transform(t);
+        center = LatLng(
+          blend.latitude + (center.latitude - blend.latitude) * e,
+          blend.longitude + (center.longitude - blend.longitude) * e,
+        );
+        if (t >= 1) _blendFrom = null;
+      }
+      _map.moveAndRotate(center, zoom, rotation);
     }
   }
 
   /// The camera center that puts [p] at [NavigationMap.positionAt] for the
   /// given zoom and rotation.
   LatLng _centerFor(LatLng p, double zoom, double rotation) {
-    if (!_nav.isActive || widget.positionAt == 0.5) return p;
+    if (!_likeNavigation || widget.positionAt == 0.5) return p;
     final camera = _map.camera;
     final size = camera.nonRotatedSize;
     if (size.width <= 0 || size.height <= 0) return p;
@@ -458,17 +575,14 @@ class NavigationMapState extends State<NavigationMap>
 
   void _onMapEvent(MapEvent event) {
     if (!_gestures.contains(event.source)) return;
+    _fly.stop();
     _setFollowing(false);
-    _recenterTimer?.cancel();
-    if (_nav.isActive && widget.recenterAfter > Duration.zero) {
-      _recenterTimer = Timer(widget.recenterAfter, () {
-        if (mounted && !_following && _nav.isActive) _recenter();
-      });
-    }
+    _armRecenter();
   }
 
   void _recenter() {
     _recenterTimer?.cancel();
+    _fly.stop();
     final here = _nav.displayPosition;
     _setFollowing(true);
     if (here == null || !_ready) return;
@@ -479,8 +593,9 @@ class NavigationMapState extends State<NavigationMap>
     _setAlong(glide: false);
     _fromZoom = _map.camera.zoom;
     _fromRot = _map.camera.rotation;
-    _toZoom = _nav.isActive ? _targetZoom() : _map.camera.zoom;
+    _toZoom = _targetZoom();
     _toRot = _targetRotation(_toHeading);
+    _blendFrom = _noAnimations ? null : _map.camera.center;
     if (_noAnimations) {
       _glide.value = 1;
       _onTick();
@@ -510,7 +625,9 @@ class NavigationMapState extends State<NavigationMap>
         onMapReady: () {
           _ready = true;
           final here = _nav.displayPosition;
-          if (here != null) _startGlide(here, _nav.displayHeading);
+          if (here != null) {
+            _startGlide(here, _nav.displayHeading, ease: true);
+          }
         },
       ),
       children: [
@@ -555,7 +672,10 @@ class NavigationMapState extends State<NavigationMap>
           ),
         );
 
-    return Stack(
+    // SizedBox.expand: with loose constraints and an overlay that takes no
+    // room, a Stack sizes itself to that overlay and the map vanished.
+    return SizedBox.expand(
+        child: Stack(
       children: [
         // The banner checks the GPS too; this one covers showBanner false.
         Positioned.fill(child: GpsTicker(controller: _nav, child: map)),
@@ -580,6 +700,7 @@ class NavigationMapState extends State<NavigationMap>
               controller: _nav,
               style: widget.style,
               showSpeedLimit: widget.showSpeedLimit,
+              onlyWhileNavigating: widget.speedOnlyWhileNavigating,
             ),
           ),
         if (widget.showRecenterButton &&
@@ -600,6 +721,6 @@ class NavigationMapState extends State<NavigationMap>
           ),
         ...widget.overlays,
       ],
-    );
+    ));
   }
 }

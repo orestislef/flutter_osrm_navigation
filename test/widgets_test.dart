@@ -203,6 +203,148 @@ void main() {
     });
   });
 
+  group('NavigationMap when not navigating', () {
+    MapCamera camera(WidgetTester tester) =>
+        MapCamera.of(tester.element(find.byType(NavigationPositionLayer)));
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    testWidgets('turns with the heading when moving, holds it when slow',
+        (tester) async {
+      final d = Drive();
+      await tester.pumpWidget(
+          app(NavigationMap(controller: d.nav, initialCenter: trackStart)));
+      await tester.pump();
+      // 36 km/h east, above headingKmh.
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(5)));
+      await settle(tester);
+      expect(camera(tester).rotation, closeTo(-90, 1));
+      // Creeping at 3.6 km/h with the heading swinging: the map holds.
+      await tester.runAsync(() => d.feed([
+            SimFix(offsetBy(trackStart, 90, 52), speed: 1, heading: 200),
+            SimFix(offsetBy(trackStart, 90, 53), speed: 1, heading: 330),
+          ]));
+      await settle(tester);
+      expect(camera(tester).rotation, closeTo(-90, 1));
+    });
+
+    testWidgets('idleHeadingUp false keeps north up', (tester) async {
+      final d = Drive();
+      await tester.pumpWidget(app(NavigationMap(
+          controller: d.nav, initialCenter: trackStart, idleHeadingUp: false)));
+      await tester.pump();
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(5)));
+      await settle(tester);
+      expect(camera(tester).rotation, closeTo(0, 0.01));
+    });
+
+    testWidgets('zooms with the speed and keeps the car low', (tester) async {
+      final d = Drive();
+      await tester.pumpWidget(app(NavigationMap(
+          controller: d.nav, initialCenter: trackStart, initialZoom: 14)));
+      await tester.pump();
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(3)));
+      await settle(tester);
+      final cam = camera(tester);
+      // 36 km/h: 16 of the 70 km/h between slowKmh and fastKmh.
+      expect(cam.zoom, closeTo(17.5 - 2 * 16 / 70, 0.02));
+      final car = cam.latLngToScreenOffset(d.nav.displayPosition!);
+      expect(car.dy / cam.nonRotatedSize.height, closeTo(0.7, 0.02));
+    });
+
+    testWidgets('comes back to following after a pan', (tester) async {
+      final d = Drive();
+      final changes = <bool>[];
+      await tester.pumpWidget(app(NavigationMap(
+        controller: d.nav,
+        initialCenter: trackStart,
+        recenterAfter: const Duration(seconds: 3),
+        onFollowingChanged: changes.add,
+      )));
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(3)));
+      await settle(tester);
+      await tester.drag(find.byType(FlutterMap), const Offset(0, 200));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-recenter')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byKey(const ValueKey('nav-recenter')), findsNothing);
+      expect(changes, [false, true]);
+    });
+
+    testWidgets('shows the speed once there is a fix', (tester) async {
+      final d = Drive();
+      await tester.pumpWidget(
+          app(NavigationMap(controller: d.nav, initialCenter: trackStart)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsNothing);
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(2)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsOneWidget);
+      expect(find.text('36'), findsOneWidget);
+      expect(find.byKey(const ValueKey('nav-speed-limit')), findsNothing);
+
+      await tester.pumpWidget(app(NavigationMap(
+          controller: d.nav,
+          initialCenter: trackStart,
+          speedOnlyWhileNavigating: true)));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('nav-speed')), findsNothing);
+    });
+
+    testWidgets('takes its size in a loose box with an empty overlay',
+        (tester) async {
+      final d = Drive();
+      await tester.pumpWidget(app(Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints.loose(const Size(300, 400)),
+          child: NavigationMap(
+            controller: d.nav,
+            initialCenter: trackStart,
+            overlays: const [SizedBox.shrink()],
+          ),
+        ),
+      )));
+      await tester.pump();
+      expect(tester.getSize(find.byType(NavigationMap)), const Size(300, 400));
+      expect(tester.getSize(find.byType(FlutterMap)), const Size(300, 400));
+    });
+
+    testWidgets('showPoint stops following, moves there, and comes back',
+        (tester) async {
+      final d = Drive();
+      final key = GlobalKey<NavigationMapState>();
+      await tester.pumpWidget(app(NavigationMap(
+        key: key,
+        controller: d.nav,
+        initialCenter: trackStart,
+        recenterAfter: const Duration(seconds: 3),
+      )));
+      await tester
+          .runAsync(() => d.feed(drive(legs(trackStart, [(90, 100)])).take(3)));
+      await settle(tester);
+      final there = offsetBy(trackStart, 0, 800);
+      key.currentState!.showPoint(there, zoom: 15);
+      await settle(tester);
+      expect(key.currentState!.following, isFalse);
+      expect(find.byKey(const ValueKey('nav-recenter')), findsOneWidget);
+      expect(metresBetween(camera(tester).center, there), lessThan(5));
+      expect(camera(tester).zoom, closeTo(15, 0.01));
+      await tester.pump(const Duration(seconds: 3));
+      await settle(tester);
+      expect(key.currentState!.following, isTrue);
+    });
+  });
+
   group('speed limit sign, stops and following', () {
     NavRoute limited(double kmh) {
       final r = testRoute();
