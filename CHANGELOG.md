@@ -1,3 +1,19 @@
+## 0.2.1
+
+**The map without a route now follows like it does while navigating.** Until now `NavigationMap` with no navigation going kept north up, kept the zoom, stayed where the user left it after a pan, and hid the speed. Now, by default, it turns with the direction of travel (above `settings.headingKmh`, holding its rotation when slower), zooms with the speed, keeps the car low on the screen, follows again after `recenterAfter`, and shows the speed. Each of these is a switch, set them to false for the old map:
+
+* `idleHeadingUp`
+* `idleFollowLikeNavigation`
+* `recenterWhenIdle`
+* `speedOnlyWhileNavigating` (true hides the speed when not navigating)
+
+Also:
+
+* `NavigationMapState.showPoint(point, zoom: ...)` moves the camera to a place, stops following and lets `recenterAfter` or the button bring it back
+* Fix: inside loose constraints, with an overlay that takes no room, the map shrank to nothing. It now always takes the size it is given
+* The camera eases over from where it is when following starts, instead of jumping
+* Bulgarian, German, French, Spanish and Italian built in, `NavigationStrings.forLocale` and `NavigationStrings.register` for a language of your own
+
 ## 0.2.0
 
 What can go wrong on a real phone, said out loud so the app can help the user:
