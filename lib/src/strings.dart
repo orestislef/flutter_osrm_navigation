@@ -1,3 +1,10 @@
+import 'dart:ui' show Locale;
+
+import 'languages/bulgarian.dart';
+import 'languages/french.dart';
+import 'languages/german.dart';
+import 'languages/italian.dart';
+import 'languages/spanish.dart';
 import 'route.dart';
 import 'settings.dart';
 
@@ -15,22 +22,74 @@ enum ArrivalType {
 
 /// Every word navigation shows or says.
 ///
-/// English ([EnglishNavigationStrings]) and Greek
-/// ([GreekNavigationStrings]) come built in. For another language extend
-/// one of them and override what you need, or extend this class and fill in
-/// everything. [instruction] builds the turn text from the small pieces, so
-/// most languages only need the pieces.
+/// Built in: English, Greek, Bulgarian, German, French, Spanish and
+/// Italian ([builtInLanguages]). Pick one from the app's locale with
+/// [NavigationStrings.forLocale].
+///
+/// For another language extend [EnglishNavigationStrings] (or this class)
+/// and override the words, then [register] it so [forLanguage] and
+/// [forLocale] find it. [instruction] builds the turn text from small
+/// pieces, so a language is mostly a list of short strings.
 abstract class NavigationStrings {
   /// Const constructor for subclasses.
   const NavigationStrings();
 
-  /// The built in strings for [languageCode] ("en", "el", "en-US"), English
-  /// when there are none for it.
-  factory NavigationStrings.forLanguage(String languageCode) {
-    final code = languageCode.toLowerCase();
-    if (code.startsWith('el')) return const GreekNavigationStrings();
-    return const EnglishNavigationStrings();
+  /// Language codes with strings built in.
+  static const List<String> builtInLanguages = [
+    'en',
+    'el',
+    'bg',
+    'de',
+    'fr',
+    'es',
+    'it',
+  ];
+
+  static final Map<String, NavigationStrings Function()> _registered = {};
+
+  /// Makes [create] the strings for [languageCode] ("ro", or "pt-BR" for one
+  /// country), for [forLanguage] and [forLocale]. Wins over a built in one,
+  /// so it can also replace the wording of a built in language.
+  static void register(
+      String languageCode, NavigationStrings Function() create) {
+    _registered[_norm(languageCode)] = create;
   }
+
+  /// Forgets what [register] added for [languageCode].
+  static void unregister(String languageCode) =>
+      _registered.remove(_norm(languageCode));
+
+  static String _norm(String code) =>
+      code.trim().toLowerCase().replaceAll('_', '-');
+
+  /// The strings for [languageCode] ("bg", "en-US", "pt_BR"): a registered
+  /// one for the whole code, then for the language alone, then a built in
+  /// one, English when there is none.
+  factory NavigationStrings.forLanguage(String languageCode) {
+    final code = _norm(languageCode);
+    final base = code.split('-').first;
+    final custom = _registered[code] ?? _registered[base];
+    if (custom != null) return custom();
+    return switch (base) {
+      'el' => const GreekNavigationStrings(),
+      'bg' => const BulgarianNavigationStrings(),
+      'de' => const GermanNavigationStrings(),
+      'fr' => const FrenchNavigationStrings(),
+      'es' => const SpanishNavigationStrings(),
+      'it' => const ItalianNavigationStrings(),
+      _ => const EnglishNavigationStrings(),
+    };
+  }
+
+  /// The strings for [locale], `Localizations.localeOf(context)` or the
+  /// phone's `PlatformDispatcher.instance.locale`.
+  factory NavigationStrings.forLocale(Locale locale) =>
+      NavigationStrings.forLanguage(locale.toLanguageTag());
+
+  /// [time] on the 24 hour clock, "17:04", for languages that use it.
+  static String clock24(DateTime time) =>
+      '${time.hour.toString().padLeft(2, '0')}:'
+      '${time.minute.toString().padLeft(2, '0')}';
 
   /// The language the voice speaks, as a BCP 47 tag ("en-US", "el-GR").
   String get speechLanguage;

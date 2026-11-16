@@ -1,3 +1,5 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_osrm_navigation/flutter_osrm_navigation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -28,8 +30,89 @@ void main() {
         NavigationStrings.forLanguage('el-GR'), isA<GreekNavigationStrings>());
     expect(NavigationStrings.forLanguage('en_US'),
         isA<EnglishNavigationStrings>());
+    expect(NavigationStrings.forLanguage('fr'), isA<FrenchNavigationStrings>());
+    expect(NavigationStrings.forLanguage('bg-BG'),
+        isA<BulgarianNavigationStrings>());
     expect(
-        NavigationStrings.forLanguage('fr'), isA<EnglishNavigationStrings>());
+        NavigationStrings.forLanguage('de_AT'), isA<GermanNavigationStrings>());
+    expect(
+        NavigationStrings.forLanguage('es'), isA<SpanishNavigationStrings>());
+    expect(
+        NavigationStrings.forLanguage('it'), isA<ItalianNavigationStrings>());
+    expect(
+        NavigationStrings.forLanguage('ja'), isA<EnglishNavigationStrings>());
+    expect(NavigationStrings.forLocale(const Locale('bg', 'BG')),
+        isA<BulgarianNavigationStrings>());
+  });
+
+  group('your own language', () {
+    tearDown(() {
+      NavigationStrings.unregister('ro');
+      NavigationStrings.unregister('pt-BR');
+      NavigationStrings.unregister('el');
+    });
+
+    test('registered languages are found by code and locale', () {
+      NavigationStrings.register('ro', () => const _Romanian());
+      expect(NavigationStrings.forLanguage('ro-RO'), isA<_Romanian>());
+      expect(NavigationStrings.forLocale(const Locale('ro')), isA<_Romanian>());
+      expect(NavigationStrings.forLanguage('ro').turn('la stânga'),
+          'Virați la stânga');
+    });
+
+    test('a country beats the language, and a built in can be replaced', () {
+      NavigationStrings.register('pt-BR', () => const _Romanian());
+      expect(NavigationStrings.forLanguage('pt_BR'), isA<_Romanian>());
+      expect(NavigationStrings.forLanguage('pt-PT'),
+          isA<EnglishNavigationStrings>());
+      NavigationStrings.register('el', () => const _Romanian());
+      expect(NavigationStrings.forLanguage('el'), isA<_Romanian>());
+    });
+  });
+
+  group('every built in language', () {
+    for (final code in NavigationStrings.builtInLanguages) {
+      test(code, () {
+        final s = NavigationStrings.forLanguage(code);
+        expect(s.speechLanguage.toLowerCase(), startsWith(code));
+        final turn = s.instruction(stepOf('turn', modifier: 'left', name: 'X'));
+        expect(turn, contains('X'));
+        final said =
+            s.inDistance(s.spokenDistance(200, DistanceUnits.metric), turn);
+        expect(said, contains('200'));
+        expect(s.instruction(stepOf('roundabout', exit: 2)), contains('2'));
+        expect(s.arrived(ArrivalType.destination), isNotEmpty);
+        expect(s.shortDuration(600), contains('10'));
+        expect(s.clockTime(DateTime(2026, 1, 1, 17, 5), use24h: true), '17:05');
+        for (final m in const [
+          'left',
+          'right',
+          'slight left',
+          'slight right',
+          'sharp left',
+          'sharp right',
+        ]) {
+          if (code != 'en') {
+            expect(s.direction(m), isNot(m), reason: '$code $m translated');
+          }
+        }
+      });
+    }
+  });
+
+  test('Bulgarian reads right', () {
+    const bg = BulgarianNavigationStrings();
+    expect(bg.instruction(stepOf('turn', modifier: 'left', name: 'ул. Витоша')),
+        'Завийте наляво по ул. Витоша');
+    expect(
+        bg.inDistance(
+            bg.spokenDistance(200, DistanceUnits.metric), 'Завийте наляво'),
+        'След 200 метра завийте наляво');
+    expect(bg.instruction(stepOf('roundabout', exit: 3)),
+        'На кръговото кръстовище излезте на изход 3');
+    expect(bg.shortDistance(1540, DistanceUnits.metric), '1,5 км');
+    expect(bg.speedUnit(DistanceUnits.metric), 'км/ч');
+    expect(bg.clockTime(DateTime(2026, 1, 1, 17, 5), use24h: false), '17:05');
   });
 
   group('instructions in English', () {
@@ -154,4 +237,17 @@ void main() {
       expect(el.shortDuration(13 * 60), '13 λεπ.');
     });
   });
+}
+
+/// [s] under another name, for tests where `s` is a strings object.
+final stepOf = s;
+
+class _Romanian extends EnglishNavigationStrings {
+  const _Romanian();
+
+  @override
+  String get speechLanguage => 'ro-RO';
+
+  @override
+  String turn(String direction) => 'Virați $direction';
 }
