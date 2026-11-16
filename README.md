@@ -30,7 +30,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.2
+  flutter_osrm_navigation: ^0.1.3
 ```
 
 ## Quick start
@@ -292,7 +292,7 @@ controller.addListener(() {
 
 ## The voice
 
-`TtsNavigationVoice` (the default) uses the device's text to speech through [flutter_tts](https://pub.dev/packages/flutter_tts). On Android it uses the navigation audio stream and ducks other audio. When the device has no voice for the language it says so (`controller.voiceState == VoiceState.unavailable`) rather than reading the text with the wrong voice.
+`TtsNavigationVoice` (the default) uses the device's text to speech: [flutter_tts](https://pub.dev/packages/flutter_tts) on phones and desktops, the browser's own speech on the web (which also keeps the package WebAssembly ready). On Android it uses the navigation audio stream and ducks other audio. When the device has no voice for the language it says so (`controller.voiceState == VoiceState.unavailable`) rather than reading the text with the wrong voice.
 
 Browsers only speak after the page had a tap. The first tap anywhere unlocks the voice, and until then the banner shows a "Tap for voice" row.
 

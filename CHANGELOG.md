@@ -1,3 +1,8 @@
+## 0.1.3
+
+* WebAssembly ready: on the web the voice now uses the browser's own speech directly, and flutter_tts is only loaded on phones and desktops. Same `TtsNavigationVoice`, nothing to change on your side
+* Works with latlong2 0.10 as well as 0.9
+
 ## 0.1.2
 
 * Arrival no longer leaves an empty strip under the banner: the footer buttons move up next to the arrival text, which also shows the destination name
