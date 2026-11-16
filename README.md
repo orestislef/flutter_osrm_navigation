@@ -34,7 +34,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.8
+  flutter_osrm_navigation: ^0.1.9
 ```
 
 ## Quick start
@@ -172,6 +172,31 @@ ValhallaRouter(
 ```
 
 OSRM takes `queryParameters` too. Keep keys out of source you push, pass them with `--dart-define` or from your backend.
+
+### More than one server
+
+Give a router backup servers and it moves to the next one when a server is down, too slow, rate limited or failing:
+
+```dart
+OsrmRouter(
+  baseUrl: 'https://osrm-1.example.com',
+  fallbackUrls: ['https://osrm-2.example.com', 'https://osrm-3.example.com'],
+  retryMainAfter: const Duration(minutes: 5), // the default
+)
+```
+
+After a fallback, requests stay on the server that answered, so a dead one does not cost a timeout every time. The first server is tried again after `retryMainAfter`. `router.currentUrl` says which one is in use. "No route between these points" is not asked elsewhere, the same map data would say the same.
+
+`ValhallaRouter` takes `fallbackUrls` too. To mix kinds, say your own Valhalla first and OSRM behind it, chain them:
+
+```dart
+FallbackRouter([
+  ValhallaRouter(baseUrl: 'https://valhalla.example.com'),
+  OsrmRouter(baseUrl: 'https://osrm.example.com'),
+])
+```
+
+`FallbackRouter(..., onNoRoute: true)` also asks the next one when a router finds no route, for routers with different map data.
 
 ### Rate limits
 
