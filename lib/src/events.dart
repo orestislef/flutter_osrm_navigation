@@ -133,6 +133,15 @@ class EtaUpdated extends NavigationEvent {
   final DateTime estimatedArrival;
 }
 
+/// The speed limit of the road under the car changed.
+class SpeedLimitChanged extends NavigationEvent {
+  /// Creates the event.
+  const SpeedLimitChanged(this.limitKmh);
+
+  /// The limit in km/h, null where it is not known.
+  final double? limitKmh;
+}
+
 /// The voice said [text].
 class InstructionSpoken extends NavigationEvent {
   /// Creates the event.

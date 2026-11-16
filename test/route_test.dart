@@ -126,4 +126,61 @@ void main() {
     expect(s.maneuverType, 'turn');
     expect(s.drivingSide, 'right');
   });
+
+  group('speed limits', () {
+    Map<String, dynamic> withLimits(List<Object> maxspeed, {int legs = 1}) {
+      final path = legs == 1
+          ? [
+              trackStart,
+              offsetBy(trackStart, 90, 100),
+              cornerOf(200),
+              cornerOf(300)
+            ]
+          : [trackStart, offsetBy(trackStart, 90, 100), cornerOf(200)];
+      return {
+        'code': 'Ok',
+        'routes': [
+          {
+            'geometry': encodePolyline(path, precision: 6),
+            'legs': [
+              {
+                'steps': [
+                  step('depart', trackStart),
+                  step('arrive', path.last)
+                ],
+                'annotation': {'maxspeed': maxspeed},
+              },
+            ],
+          },
+        ],
+      };
+    }
+
+    test('km/h, mph, unknown and none, one per segment', () {
+      final route = NavRoute.fromOsrmJson(withLimits([
+        {'speed': 50, 'unit': 'km/h'},
+        {'speed': 30, 'unit': 'mph'},
+        {'unknown': true},
+      ]));
+      expect(route.speedLimitsKmh, hasLength(3));
+      expect(route.speedLimitsKmh[0], 50);
+      expect(route.speedLimitsKmh[1], closeTo(48.28, 0.01));
+      expect(route.speedLimitsKmh[2], isNull);
+    });
+
+    test('limits that do not line up with the line are left out', () {
+      final route = NavRoute.fromOsrmJson(withLimits([
+        {'speed': 50, 'unit': 'km/h'},
+      ]));
+      expect(route.speedLimitsKmh, isEmpty);
+      final none = NavRoute.fromOsrmJson(withLimits([
+        {'none': true},
+        {'unknown': true},
+        {'unknown': true},
+      ]));
+      expect(none.speedLimitsKmh, isEmpty, reason: 'nothing known at all');
+    });
+  });
 }
+
+LatLng cornerOf(double metres) => offsetBy(trackStart, 90, metres);

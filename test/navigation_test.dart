@@ -676,6 +676,51 @@ void main() {
     });
   });
 
+  group('speed limits', () {
+    /// The test route with 50 km/h on its first street and 30 on the rest.
+    NavRoute limited() {
+      final r = testRoute();
+      final segments = r.points.length - 1;
+      return NavRoute(
+        points: r.points,
+        steps: r.steps,
+        distanceM: r.distanceM,
+        durationS: r.durationS,
+        speedLimitsKmh: [
+          for (var i = 0; i < segments; i++) i < 30 ? 50.0 : 30.0,
+        ],
+      );
+    }
+
+    test('the limit of the road under the car, and speeding', () async {
+      final d = Drive();
+      d.start(limited());
+      expect(d.nav.speedLimitKmh, isNull, reason: 'no fix yet');
+      await d.feed(drive(routePath()).take(10));
+      expect(d.nav.speedLimitKmh, 50);
+      expect(d.nav.speeding, isFalse, reason: '36 km/h');
+      final track = drive(routePath());
+      await d.feed(track.skip(10).take(60)); // on to 700 m, the 30 street
+      await d.feed([
+        for (final f in track.skip(70).take(5))
+          SimFix(f.position, speed: 15, heading: f.heading),
+      ]);
+      expect(d.nav.speedLimitKmh, 30);
+      expect(d.nav.speeding, isTrue, reason: '54 km/h in a 30');
+      await Drive.settle();
+      expect(d.events.whereType<SpeedLimitChanged>().map((e) => e.limitKmh),
+          [50, 30]);
+    });
+
+    test('no limits from the router: none shown, never speeding', () async {
+      final d = Drive();
+      d.start(testRoute());
+      await d.feed(drive(routePath(), speed: 40).take(5));
+      expect(d.nav.speedLimitKmh, isNull);
+      expect(d.nav.speeding, isFalse);
+    });
+  });
+
   group('progress events', () {
     test('every counted fix reports progress, each maneuver passed once',
         () async {

@@ -300,6 +300,41 @@ void main() {
     });
   });
 
+  group('speed limits from OSRM', () {
+    test('off by default, nothing extra asked', () async {
+      Uri? url;
+      final router = OsrmRouter(client: MockClient((req) async {
+        url = req.url;
+        return http.Response(jsonEncode(osrmAnswer()), 200);
+      }));
+      await router.route(const RouteRequest(points: [a, b]));
+      expect(url!.queryParameters.containsKey('annotations'), isFalse);
+    });
+
+    test('asked for when on, and dropped for good when the server says no',
+        () async {
+      final asked = <Uri>[];
+      final router = OsrmRouter(
+        speedLimits: true,
+        client: MockClient((req) async {
+          asked.add(req.url);
+          if (req.url.queryParameters['annotations'] == 'maxspeed') {
+            return http.Response(
+                jsonEncode({'code': 'InvalidQuery', 'message': 'malformed'}),
+                400);
+          }
+          return http.Response(jsonEncode(osrmAnswer()), 200);
+        }),
+      );
+      final route = await router.route(const RouteRequest(points: [a, b]));
+      expect(route.usable, isTrue);
+      expect(asked, hasLength(2));
+      await router.route(const RouteRequest(points: [a, b]));
+      expect(asked, hasLength(3), reason: 'not asked for again');
+      expect(asked.last.queryParameters.containsKey('annotations'), isFalse);
+    });
+  });
+
   group('headers and keys', () {
     test('fixed headers and a builder asked before every request', () async {
       var token = 0;

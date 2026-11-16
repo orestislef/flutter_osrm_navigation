@@ -222,12 +222,16 @@ class OsrmRouter extends _HttpRouter {
   /// Creates a router for the OSRM server at [baseUrl].
   ///
   /// [profile] is the profile in the URL, usually `driving`.
-  /// [queryParameters] are added to every request (`exclude=toll`,
-  /// `annotations=true`).
+  /// [queryParameters] are added to every request (`exclude=toll`).
+  /// [speedLimits] asks for `annotations=maxspeed`, the speed limit of
+  /// every stretch of the route. Plain OSRM does not know it (Mapbox
+  /// compatible servers do), so it is off by default. A server that turns
+  /// it down is asked again without it, and not asked for it again.
   OsrmRouter({
     super.baseUrl = 'https://router.project-osrm.org',
     this.profile = 'driving',
     this.queryParameters = const {},
+    this.speedLimits = false,
     super.headers,
     super.headersBuilder,
     super.client,
@@ -239,6 +243,17 @@ class OsrmRouter extends _HttpRouter {
 
   /// Extra query parameters for every request.
   final Map<String, String> queryParameters;
+
+  /// Ask for the speed limits along the route.
+  final bool speedLimits;
+
+  /// The server turned `annotations=maxspeed` down once.
+  bool _noMaxspeed = false;
+
+  bool get _askMaxspeed =>
+      speedLimits &&
+      !_noMaxspeed &&
+      !queryParameters.containsKey('annotations');
 
   Uri _uri(RouteRequest r, {required bool full}) {
     final coords = r.points
@@ -253,6 +268,7 @@ class OsrmRouter extends _HttpRouter {
           'overview': 'full',
           'geometries': 'polyline6',
           'steps': 'true',
+          if (_askMaxspeed) 'annotations': 'maxspeed',
         } else ...{
           'overview': 'false',
           'steps': 'false',
@@ -279,7 +295,13 @@ class OsrmRouter extends _HttpRouter {
   /// that way. A rate limit or a server error is not retried here.
   Future<Map<String, dynamic>> _askWithFallback(RouteRequest r,
       {required bool full}) async {
+    final askedMaxspeed = full && _askMaxspeed;
     var answer = await _ask(r, full: full);
+    if (askedMaxspeed && answer.json['code'] == 'InvalidQuery') {
+      // An older or slimmer OSRM that does not know maxspeed.
+      _noMaxspeed = true;
+      answer = await _ask(r, full: full);
+    }
     if (answer.json['code'] != 'Ok' && r.headingDeg != null) {
       answer = await _ask(r.withoutHeading(), full: full);
     }

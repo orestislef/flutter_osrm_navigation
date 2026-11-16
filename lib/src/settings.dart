@@ -40,6 +40,7 @@ class NavigationSettings {
     this.headingToleranceDegrees = 45,
     this.speakGapMs = 3000,
     this.units = DistanceUnits.metric,
+    this.speedingToleranceKmh = 3,
   });
 
   /// Ask for a new route when the user leaves the current one.
@@ -125,6 +126,9 @@ class NavigationSettings {
   /// Units for distances shown and spoken.
   final DistanceUnits units;
 
+  /// Over the speed limit by more than this (km/h) counts as speeding.
+  final int speedingToleranceKmh;
+
   /// [movingKmh] in metres per second.
   double get movingMps => movingKmh / 3.6;
 
@@ -157,6 +161,7 @@ class NavigationSettings {
     int? headingToleranceDegrees,
     int? speakGapMs,
     DistanceUnits? units,
+    int? speedingToleranceKmh,
   }) {
     return NavigationSettings(
       rerouteEnabled: rerouteEnabled ?? this.rerouteEnabled,
@@ -185,6 +190,7 @@ class NavigationSettings {
           headingToleranceDegrees ?? this.headingToleranceDegrees,
       speakGapMs: speakGapMs ?? this.speakGapMs,
       units: units ?? this.units,
+      speedingToleranceKmh: speedingToleranceKmh ?? this.speedingToleranceKmh,
     );
   }
 }

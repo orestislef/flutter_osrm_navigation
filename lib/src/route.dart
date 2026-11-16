@@ -131,6 +131,7 @@ class NavRoute {
     this.distanceM = 0,
     this.durationS = 0,
     this.waypoints = const [],
+    this.speedLimitsKmh = const [],
   });
 
   /// Reads an OSRM shaped route.
@@ -203,7 +204,37 @@ class NavRoute {
       distanceM: ((route['distance'] as num?) ?? 0).toDouble(),
       durationS: ((route['duration'] as num?) ?? 0).toDouble(),
       waypoints: waypoints,
+      speedLimitsKmh: _readSpeedLimits(legs, points.length),
     );
+  }
+
+  /// The `maxspeed` annotation of every leg, one entry per segment of the
+  /// line, in km/h. Empty when the router did not send it for every leg or
+  /// it does not line up with the line.
+  static List<double?> _readSpeedLimits(Object? legs, int pointCount) {
+    if (legs is! List || legs.isEmpty || pointCount < 2) return const [];
+    final out = <double?>[];
+    for (final leg in legs) {
+      final annotation = leg is Map ? leg['annotation'] : null;
+      final maxspeed = annotation is Map ? annotation['maxspeed'] : null;
+      if (maxspeed is! List) return const [];
+      for (final m in maxspeed) {
+        out.add(m is Map ? _kmh(m) : null);
+      }
+    }
+    if (out.length != pointCount - 1 || out.every((v) => v == null)) {
+      return const [];
+    }
+    return List.unmodifiable(out);
+  }
+
+  /// `{"speed": 50, "unit": "km/h"}` in km/h. "unknown" and "none" (no
+  /// limit, as on parts of the Autobahn) are null.
+  static double? _kmh(Map m) {
+    final speed = m['speed'];
+    if (speed is! num || speed <= 0) return null;
+    final unit = '${m['unit'] ?? 'km/h'}'.toLowerCase();
+    return unit.startsWith('mph') ? speed * 1.609344 : speed.toDouble();
   }
 
   static List<LatLng> _readGeometry(
@@ -247,6 +278,12 @@ class NavRoute {
   /// Stops between the start and the end, in order. Empty for a route
   /// with no stops.
   final List<LatLng> waypoints;
+
+  /// The speed limit of each segment of [points] in km/h (segment `i` runs
+  /// from `points[i]` to `points[i + 1]`), null where it is not known or
+  /// there is none. Empty when the router sent no limits: OSRM sends them
+  /// with `annotations=maxspeed` when its map data has them.
+  final List<double?> speedLimitsKmh;
 
   /// True when there is a line and at least one step to follow.
   bool get usable => points.length >= 2 && steps.isNotEmpty;

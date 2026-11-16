@@ -84,6 +84,11 @@ class NavigationController extends ChangeNotifier {
   String? _destinationName;
   ArrivalType _arrival = ArrivalType.destination;
   double _routeDurationS = 0;
+
+  // The speed limit of each segment of the route line, and the last one
+  // reported.
+  List<double?> _segmentLimits = const [];
+  double? _lastLimit;
   double _trafficFactor = 1;
 
   // Stops still ahead, with where they are along the line.
@@ -290,6 +295,26 @@ class NavigationController extends ChangeNotifier {
     return _lastMatch!.bearing;
   }
 
+  /// The speed limit of the road under the car in km/h, from the router
+  /// (OSRM's `maxspeed`). Null when the router sent none, the road has
+  /// none, or the car is off the route.
+  double? get speedLimitKmh {
+    final m = _lastMatch;
+    if (!_active || m == null || _offRoute || _segmentLimits.isEmpty) {
+      return null;
+    }
+    if (m.distanceM > _settings.offRouteMeters) return null;
+    return m.segment < _segmentLimits.length ? _segmentLimits[m.segment] : null;
+  }
+
+  /// Faster than [speedLimitKmh] by more than
+  /// [NavigationSettings.speedingToleranceKmh].
+  bool get speeding {
+    final limit = speedLimitKmh;
+    return limit != null &&
+        speedMps * 3.6 > limit + _settings.speedingToleranceKmh;
+  }
+
   /// Where to draw the position: on the line when close to it, else the
   /// last fix.
   LatLng? get displayPosition => snappedPosition ?? _lastFix?.position;
@@ -399,6 +424,11 @@ class NavigationController extends ChangeNotifier {
         _settings.etaRefreshSeconds > 0 &&
         now - (_lastEtaAt ?? now) >= _settings.etaRefreshSeconds * 1000) {
       unawaited(_refreshEta(stamped));
+    }
+    final limit = speedLimitKmh;
+    if (limit != _lastLimit) {
+      _lastLimit = limit;
+      _emit(SpeedLimitChanged(limit));
     }
     _emit(ProgressUpdated(
       remainingDistance: remainingDistance,
@@ -554,6 +584,8 @@ class NavigationController extends ChangeNotifier {
         : [for (final s in steps) s.location];
     final line = RouteLine(pts);
     _line = line.isEmpty ? null : line;
+    _segmentLimits = _limitsFor(route, pts);
+    _lastLimit = null;
     _maneuverAlong =
         _line == null ? const [] : _maneuverPositions(_line!, steps);
     _routeDurationS = route == null
@@ -568,6 +600,31 @@ class NavigationController extends ChangeNotifier {
     _then = _thenOf(_upcoming);
     _distanceToNext = _maneuverAlong.isEmpty ? 0 : _maneuverAlong[_upcoming];
     _setWaypoints(waypoints);
+  }
+
+  /// The route's speed limits per segment of the route line, which leaves
+  /// out points repeated right after themselves.
+  static List<double?> _limitsFor(NavRoute? route, List<LatLng> pts) {
+    final limits = route?.speedLimitsKmh ?? const <double?>[];
+    if (route == null ||
+        limits.isEmpty ||
+        !identical(pts, route.points) ||
+        limits.length != pts.length - 1) {
+      return const [];
+    }
+    final kept = <double?>[];
+    LatLng? last;
+    for (var i = 0; i < pts.length; i++) {
+      final p = pts[i];
+      if (last != null &&
+          last.latitude == p.latitude &&
+          last.longitude == p.longitude) {
+        continue;
+      }
+      if (last != null) kept.add(limits[i - 1]);
+      last = p;
+    }
+    return kept;
   }
 
   /// Where each stop is along the line: at the arrival step of its leg
