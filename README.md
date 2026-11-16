@@ -20,7 +20,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 - **Stops on the way.** Routes through several points, each stop announced and reported, reroutes go through the stops not reached yet.
 - **OSRM, Valhalla, or your own backend.** Built in routers for both, or hand over routes from your server in OSRM's shape.
 - **Live ETA.** The time left is corrected now and then from the router (traffic, when your router knows it).
-- **A ready map.** `NavigationMap` with a camera that turns with the road, zooms with speed, keeps the car low on the screen, glides between fixes, and comes back after you pan.
+- **A ready map.** `NavigationMap` with a camera that turns with the road, zooms with speed, keeps the car low on the screen, glides between fixes, and comes back after you pan. The current speed (km/h or mph) and the GPS accuracy circle are on by default, each one a switch.
 - **Your colors.** `NavigationStyle` is a theme extension. Out of the box everything follows your `ColorScheme`.
 - **Background.** Keeps navigating and speaking with the app in the background or the screen off.
 - **English and Greek** built in, metric or imperial, and any other language by overriding the words.
@@ -30,7 +30,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.4
+  flutter_osrm_navigation: ^0.1.5
 ```
 
 ## Quick start
@@ -233,8 +233,30 @@ NavigationMap(
 | Position | `puckColor`, `puckBorderColor`, `puckArrowColor`, `puckSize`, `accuracyColor` |
 | Markers | `destinationColor`, `stopColor`, `onMarkerColor` |
 | Buttons | `buttonColor`, `onButtonColor` |
+| Speed | `speedColor`, `onSpeedColor` |
 
 For your own marker use `NavigationMap(positionMarker: ...)`, drawn pointing up. For your own maneuver icons use `NavigationBanner(iconBuilder: ...)`.
+
+### What the map shows
+
+Each part is a switch on `NavigationMap`:
+
+```dart
+NavigationMap(
+  controller: controller,
+  showBanner: true,          // the next maneuver, time and distance left
+  showSpeed: true,           // current speed, km/h or mph by settings.units
+  speedAlignment: AlignmentDirectional.bottomStart,
+  showAccuracy: true,        // GPS accuracy circle (hidden while drawn on the route)
+  showStops: true,           // numbered stops and the destination flag
+  showRecenterButton: true,  // after the user pans the map
+  headingUp: true,
+  autoZoom: true,
+  layers: [...],
+)
+```
+
+The speed follows the units and the language: `km/h` in English, `χλμ/ώ` in Greek, `mph` with `DistanceUnits.imperial`. `NavigationSpeedometer(controller: controller)` is the same badge for your own layout.
 
 ## Language and units
 
@@ -403,7 +425,7 @@ FlutterMap(
 )
 ```
 
-and `NavigationBanner(controller: controller)` anywhere in your layout. If you animate the marker yourself, pass `progressMeters` to `NavigationRouteLayer` so the line ends right at it. Or skip the widgets and read the controller: `upcomingInstruction`, `distanceToNextStep`, `thenInstruction`, `remainingDistance`, `remainingDuration`, `estimatedArrival`, `remainingLine`, `offRoute`, `recalculating`, `arrived`, and `NavigationStyle.resolve(context)` for the colors.
+and `NavigationBanner(controller: controller)` and `NavigationSpeedometer(controller: controller)` anywhere in your layout. If you animate the marker yourself, pass `progressMeters` to `NavigationRouteLayer` so the line ends right at it. Or skip the widgets and read the controller: `upcomingInstruction`, `distanceToNextStep`, `thenInstruction`, `remainingDistance`, `remainingDuration`, `estimatedArrival`, `remainingLine`, `offRoute`, `recalculating`, `arrived`, and `NavigationStyle.resolve(context)` for the colors.
 
 ## Settings
 
