@@ -30,7 +30,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.5
+  flutter_osrm_navigation: ^0.1.6
 ```
 
 ## Quick start
@@ -252,6 +252,23 @@ NavigationMap(
   showRecenterButton: true,  // after the user pans the map
   headingUp: true,
   autoZoom: true,
+  layers: [...],
+)
+```
+
+Each part also takes its own place and spacing, inside the safe area, for when your app has buttons or a panel over the map:
+
+```dart
+NavigationMap(
+  controller: controller,
+  bannerPadding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+  bannerMaxWidth: 560,
+  speedAlignment: AlignmentDirectional.bottomStart,
+  speedPadding: const EdgeInsets.only(left: 16, bottom: 88), // above your buttons
+  recenterAlignment: AlignmentDirectional.bottomEnd,
+  recenterPadding: const EdgeInsets.all(16),
+  // Pushes all three in together, the height of your bottom panel say.
+  overlayInsets: EdgeInsets.only(bottom: panelHeight),
   layers: [...],
 )
 ```
