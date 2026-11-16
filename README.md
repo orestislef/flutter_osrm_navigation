@@ -34,7 +34,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.9
+  flutter_osrm_navigation: ^0.2.0
 ```
 
 ## Quick start
@@ -445,6 +445,70 @@ Browsers only speak after the page had a tap. The first tap anywhere unlocks the
 
 Mute and unmute with `controller.voiceEnabled`. To send prompts somewhere else implement `NavigationVoice`, or use `SilentNavigationVoice` to keep them quiet.
 
+### When the voice is missing
+
+`controller.voiceProblem` says why the voice cannot speak, or may not speak well:
+
+| `VoiceProblem` | What it means | What the user can do |
+|---|---|---|
+| `none` | All good | |
+| `noEngine` | No text to speech app on the phone (Android) | Install Google's Speech Services |
+| `languageMissing` | The engine has no voice for the language | Add the voice in the text to speech settings |
+| `notDownloaded` | The voice is there but not downloaded (Android). It speaks only while online | Download it in the text to speech settings |
+| `unsupportedPlatform` | No speech here (Linux, Windows, an old browser) | |
+
+The package does not open system screens itself, so it stays plain Dart on every platform. On Android it takes a few lines with [android_intent_plus](https://pub.dev/packages/android_intent_plus), then `recheckVoice` when the user comes back:
+
+```dart
+import 'package:android_intent_plus/android_intent.dart';
+
+Future<void> fixVoice() async {
+  switch (controller.voiceProblem) {
+    case VoiceProblem.noEngine:
+      await const AndroidIntent(
+        action: 'action_view',
+        data: 'market://details?id=com.google.android.tts',
+      ).launch();
+    case VoiceProblem.languageMissing:
+    case VoiceProblem.notDownloaded:
+      // The engine's own "install voice data" screen.
+      await const AndroidIntent(
+        action: 'android.speech.tts.engine.INSTALL_TTS_DATA',
+      ).launch();
+    default:
+  }
+}
+
+// Look again when the app comes back to the front.
+final listener = AppLifecycleListener(onResume: controller.recheckVoice);
+```
+
+On iOS voices are added by the user in Settings, Accessibility, Spoken Content, Voices. There is no screen an app can open for it, so tell the user where to go.
+
+## When location is not right
+
+| Case | What you get | What to do |
+|---|---|---|
+| Location switched off | `LocationAccess.serviceDisabled` | `NavigationLocation.openLocationSettings()` |
+| Permission refused | `LocationAccess.denied` | Ask again later |
+| Refused for good | `LocationAccess.deniedForever` | `NavigationLocation.openSettings()` |
+| "Precise" turned off (Android 12+, iOS 14+) | `LocationAccess.approximate` | Ask for precise location in the app settings. Fixes are kilometres off and navigation leaves them all out |
+| Permission taken away or GPS off while driving | An error on the stream, to `attachLocation(onError: ...)` | The route and progress stay, navigation picks up when fixes come back |
+| No fix for a while (a garage, a long tunnel) | `controller.gpsSignal == GpsSignal.lost`, `GpsSignalChanged`, "Searching for GPS…" in the banner | Nothing, it clears with the next fix |
+| Fixes come but are all too rough | `GpsSignal.weak`, "Weak GPS signal" in the banner | Usually approximate location, see above |
+
+On iOS, `ensurePermission(iosPrecisePurposeKey: 'Navigation')` asks iOS for precise location for the session first, when Info.plist has the key:
+
+```xml
+<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+<dict>
+    <key>Navigation</key>
+    <string>Turn-by-turn directions need your precise location.</string>
+</dict>
+```
+
+How long without a fix counts as lost is `settings.gpsLostSeconds` (10, 0 turns it off). `NavigationMap` and `NavigationBanner` check it every second. Without them, call `controller.checkGps()` on a timer of your own.
+
 ## Events
 
 ```dart
@@ -463,7 +527,7 @@ controller.events.listen((event) {
 });
 ```
 
-Also `NavigationStarted`, `NavigationStopped`, `OffRouteChanged`, `RerouteStarted` (a new route is being asked for, the banner shows "Recalculating"), `SpeedLimitChanged` and `InstructionSpoken`. Following the position on the map is `NavigationMap(onFollowingChanged: ...)`.
+Also `NavigationStarted`, `NavigationStopped`, `OffRouteChanged`, `RerouteStarted` (a new route is being asked for, the banner shows "Recalculating"), `SpeedLimitChanged`, `GpsSignalChanged` and `InstructionSpoken`. Following the position on the map is `NavigationMap(onFollowingChanged: ...)`.
 
 For distance and time:
 
