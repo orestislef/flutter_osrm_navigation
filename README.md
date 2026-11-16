@@ -4,6 +4,10 @@ Turn-by-turn navigation for [flutter_map](https://pub.dev/packages/flutter_map),
 
 It follows the car along the route line, speaks each maneuver, notices when you leave the route (a wrong turn, driving the wrong way, a missed U-turn) and asks the router for a new route that starts the way you are heading. Every color of the banner, the route line and the position marker can be changed.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/orestislef/flutter_osrm_navigation/main/screenshots/demo.webp" width="270" alt="A simulated drive on an Android phone">
+</p>
+
 <p>
   <img src="https://raw.githubusercontent.com/orestislef/flutter_osrm_navigation/main/screenshots/navigation.webp" width="19%" alt="Navigating">
   <img src="https://raw.githubusercontent.com/orestislef/flutter_osrm_navigation/main/screenshots/then.webp" width="19%" alt="The next maneuver right after">
@@ -20,7 +24,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 - **Stops on the way.** Routes through several points, each stop announced and reported, reroutes go through the stops not reached yet.
 - **OSRM, Valhalla, or your own backend.** Built in routers for both, or hand over routes from your server in OSRM's shape.
 - **Live ETA.** The time left is corrected now and then from the router (traffic, when your router knows it).
-- **A ready map.** `NavigationMap` with a camera that turns with the road, zooms with speed, keeps the car low on the screen, glides between fixes, and comes back after you pan. The current speed (km/h or mph) and the GPS accuracy circle are on by default, each one a switch.
+- **A ready map.** `NavigationMap` with a camera that turns with the road, zooms with speed, keeps the car low on the screen, glides between fixes, and comes back after you pan. The current speed (km/h or mph) with the speed limit sign when the router sends limits, and the GPS accuracy circle, are on by default, each one a switch.
 - **Your colors.** `NavigationStyle` is a theme extension. Out of the box everything follows your `ColorScheme`.
 - **Background.** Keeps navigating and speaking with the app in the background or the screen off.
 - **English and Greek** built in, metric or imperial, and any other language by overriding the words.
@@ -30,7 +34,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.1.6
+  flutter_osrm_navigation: ^0.1.7
 ```
 
 ## Quick start
@@ -233,7 +237,7 @@ NavigationMap(
 | Position | `puckColor`, `puckBorderColor`, `puckArrowColor`, `puckSize`, `accuracyColor` |
 | Markers | `destinationColor`, `stopColor`, `onMarkerColor` |
 | Buttons | `buttonColor`, `onButtonColor` |
-| Speed | `speedColor`, `onSpeedColor` |
+| Speed | `speedColor`, `onSpeedColor`, `speedingColor`, `onSpeedingColor`, `speedLimitColor` |
 
 For your own marker use `NavigationMap(positionMarker: ...)`, drawn pointing up. For your own maneuver icons use `NavigationBanner(iconBuilder: ...)`.
 
@@ -246,6 +250,7 @@ NavigationMap(
   controller: controller,
   showBanner: true,          // the next maneuver, time and distance left
   showSpeed: true,           // current speed, km/h or mph by settings.units
+  showSpeedLimit: true,      // the limit sign next to it, when the router sent limits
   speedAlignment: AlignmentDirectional.bottomStart,
   showAccuracy: true,        // GPS accuracy circle (hidden while drawn on the route)
   showStops: true,           // numbered stops and the destination flag
@@ -255,6 +260,39 @@ NavigationMap(
   layers: [...],
 )
 ```
+
+Your own widgets for the stops and the destination, and a say when the camera stops or starts following:
+
+```dart
+final mapKey = GlobalKey<NavigationMapState>();
+
+NavigationMap(
+  key: mapKey,
+  controller: controller,
+  stopBuilder: (context, index, point) => MyStopPin(number: index + 1),
+  destinationBuilder: (context, point) => const MyFlag(),
+  positionMarker: const MyCar(), // drawn pointing up, turned with the heading
+  onFollowingChanged: (following) {
+    // false when the user moved the map, true when it follows again
+  },
+  layers: [...],
+)
+
+// From a button of your own:
+mapKey.currentState?.recenter();
+```
+
+### Speed limits
+
+When the route comes with limits, a round sign shows next to the speed and the speed turns red while over it (by more than `settings.speedingToleranceKmh`, 3 by default). Without limits only the speed shows.
+
+Limits come from a `maxspeed` annotation on the route, the way Mapbox compatible servers send it. Plain OSRM (and its public demo) does not have it, so `OsrmRouter` only asks for it when told to:
+
+```dart
+OsrmRouter(baseUrl: 'https://your-server.example.com', speedLimits: true)
+```
+
+A server that turns the option down is asked again without it, once. Routes from Valhalla or your own backend through `CallbackRouter` that carry `annotation.maxspeed` are read either way. The controller has `speedLimitKmh`, `speeding` and a `SpeedLimitChanged` event for your own UI.
 
 Each part also takes its own place and spacing, inside the safe area, for when your app has buttons or a panel over the map:
 
@@ -400,7 +438,7 @@ controller.events.listen((event) {
 });
 ```
 
-Also `NavigationStarted`, `NavigationStopped`, `OffRouteChanged`, `RerouteStarted` (a new route is being asked for, the banner shows "Recalculating") and `InstructionSpoken`.
+Also `NavigationStarted`, `NavigationStopped`, `OffRouteChanged`, `RerouteStarted` (a new route is being asked for, the banner shows "Recalculating"), `SpeedLimitChanged` and `InstructionSpoken`. Following the position on the map is `NavigationMap(onFollowingChanged: ...)`.
 
 For distance and time:
 
