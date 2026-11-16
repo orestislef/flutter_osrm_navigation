@@ -361,34 +361,28 @@ class _NavigationPageState extends State<NavigationPage> {
               ],
             ),
             const Divider(height: 20),
-            Row(
-              children: [
-                SegmentedButton<String>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: 'en', label: Text('EN')),
-                    ButtonSegment(value: 'el', label: Text('EL')),
-                  ],
-                  selected: {
-                    _nav.strings is GreekNavigationStrings ? 'el' : 'en'
-                  },
-                  onSelectionChanged: (v) => setState(() =>
-                      _nav.strings = NavigationStrings.forLanguage(v.first)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SegmentedButton<Look>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: Look.theme, label: Text('Theme')),
-                      ButtonSegment(value: Look.night, label: Text('Night')),
-                      ButtonSegment(value: Look.custom, label: Text('Custom')),
-                    ],
-                    selected: {widget.look},
-                    onSelectionChanged: (v) => widget.onLook(v.first),
-                  ),
-                ),
+            // The built in languages; NavigationStrings.forLocale picks one
+            // from the phone's language in a real app.
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                for (final code in NavigationStrings.builtInLanguages)
+                  ButtonSegment(value: code, label: Text(code.toUpperCase())),
               ],
+              selected: {_nav.strings.speechLanguage.substring(0, 2)},
+              onSelectionChanged: (v) => setState(() =>
+                  _nav.strings = NavigationStrings.forLanguage(v.first)),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<Look>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: Look.theme, label: Text('Theme')),
+                ButtonSegment(value: Look.night, label: Text('Night')),
+                ButtonSegment(value: Look.custom, label: Text('Custom')),
+              ],
+              selected: {widget.look},
+              onSelectionChanged: (v) => widget.onLook(v.first),
             ),
           ],
         ),
