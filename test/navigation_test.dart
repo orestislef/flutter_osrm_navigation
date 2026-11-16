@@ -313,6 +313,28 @@ void main() {
     });
   });
 
+  group('a router that rate limits', () {
+    test('the next reroute waits as long as Retry-After says', () async {
+      final d = Drive();
+      d.start(testRoute());
+      d.nav.router = CallbackRouter(route: (r) async {
+        d.asked.add(Asked(r, d.now));
+        throw const RoutingException('Too Many Requests',
+            statusCode: 429, retryAfter: Duration(seconds: 60));
+      });
+      final track = drive(legs(trackStart, [(90, 600), (90, 1500)]));
+      await d.feed(track.take(68));
+      expect(d.asked, hasLength(1));
+      await d.feed(track.skip(68).take(80));
+      expect(d.asked, hasLength(2), reason: 'once more, not every 15 s');
+      expect(d.asked[1].at - d.asked[0].at, greaterThanOrEqualTo(60000));
+      final failed = d.events.whereType<RerouteFailed>().first;
+      expect((failed.error as RoutingException).isRateLimited, isTrue);
+      expect(identical(d.nav.steps, d.nav.route!.steps), isTrue);
+      expect(d.nav.offRoute, isTrue, reason: 'the old route stays');
+    });
+  });
+
   group('the wrong way and U-turns', () {
     test('a start the other way with no heading: a new route within 40 m',
         () async {

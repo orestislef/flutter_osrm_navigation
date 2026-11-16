@@ -778,7 +778,10 @@ class NavigationController extends ChangeNotifier {
     }
     if (_disposed || seq != _routeSeq || !_active) return;
     final ok = route != null && route.usable;
-    _gate.answered(_clock(), ok: ok);
+    // A router that says how long to wait (rate limited) is listened to.
+    _gate.answered(_clock(),
+        ok: ok,
+        waitAtLeast: error is RoutingException ? error.retryAfter : null);
     _recalculating = false;
     if (ok) {
       _routeSeq++;
@@ -818,8 +821,12 @@ class NavigationController extends ChangeNotifier {
             headingToleranceDeg: _settings.headingToleranceDegrees,
           ))
           .timeout(const Duration(seconds: 20));
-    } catch (_) {
-      // The route's own times stay.
+    } catch (e) {
+      // The route's own times stay. A router that asks to wait gets that
+      // long before the next estimate.
+      final wait = e is RoutingException ? e.retryAfter : null;
+      final at = fix.atMs;
+      if (wait != null && at != null) _lastEtaAt = at + wait.inMilliseconds;
     }
     _etaInFlight = false;
     if (_disposed || seq != _routeSeq || !_active) return;

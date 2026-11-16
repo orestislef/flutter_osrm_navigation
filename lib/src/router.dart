@@ -33,7 +33,12 @@ class RouteRequest {
 /// A router could not give a route.
 class RoutingException implements Exception {
   /// Creates the exception.
-  const RoutingException(this.message, {this.statusCode, this.code});
+  const RoutingException(
+    this.message, {
+    this.statusCode,
+    this.code,
+    this.retryAfter,
+  });
 
   /// What went wrong.
   final String message;
@@ -44,6 +49,17 @@ class RoutingException implements Exception {
   /// The router's own error code (`NoRoute`, `NoSegment`, a Valhalla error
   /// number), when it sent one.
   final String? code;
+
+  /// How long the router asked to wait before the next request (its
+  /// `Retry-After`), when it said.
+  final Duration? retryAfter;
+
+  /// The router said too many requests (HTTP 429). Public demo servers do
+  /// this quickly.
+  bool get isRateLimited => statusCode == 429;
+
+  /// The router had a problem of its own (HTTP 5xx).
+  bool get isServerError => statusCode != null && statusCode! >= 500;
 
   @override
   String toString() => 'RoutingException: $message'
@@ -108,6 +124,7 @@ abstract class _HttpRouter extends NavRouter {
   _HttpRouter({
     required String baseUrl,
     Map<String, String>? headers,
+    this.headersBuilder,
     http.Client? client,
     required this.timeout,
   })  : baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''),
@@ -124,28 +141,66 @@ abstract class _HttpRouter extends NavRouter {
   /// Sent with every request (an API key, a user agent).
   final Map<String, String> headers;
 
+  /// Called before every request for headers that change, such as a token
+  /// that expires. They go over [headers].
+  final FutureOr<Map<String, String>> Function()? headersBuilder;
+
   /// How long one request may take.
   final Duration timeout;
 
   final http.Client? _client;
 
-  Future<Map<String, dynamic>> _send(
-      Future<http.Response> Function(http.Client c) send) async {
+  /// [headers] with whatever [headersBuilder] gives now.
+  Future<Map<String, String>> _headers() async {
+    final build = headersBuilder;
+    if (build == null) return headers;
+    return {...headers, ...await build()};
+  }
+
+  /// `Retry-After` in seconds. The date form is rare and left out.
+  static Duration? _retryAfter(http.Response res) {
+    final value = res.headers['retry-after'];
+    final seconds = value == null ? null : int.tryParse(value.trim());
+    return seconds == null || seconds < 0 ? null : Duration(seconds: seconds);
+  }
+
+  /// The router's JSON answer, with [statusCode] filled in.
+  ///
+  /// Too many requests (429) and server errors (5xx) throw right away, so
+  /// nothing asks again in the same breath and makes it worse.
+  Future<({Map<String, dynamic> json, int statusCode})> _send(
+      Future<http.Response> Function(http.Client c, Map<String, String> h)
+          send) async {
     final own = _client == null;
     final client = _client ?? http.Client();
     try {
-      final res = await send(client).timeout(timeout);
+      final res = await send(client, await _headers()).timeout(timeout);
       Object? body;
       try {
         body = jsonDecode(utf8.decode(res.bodyBytes));
       } catch (_) {
         body = null;
       }
-      if (body is! Map) {
-        throw RoutingException('The router did not answer with JSON',
-            statusCode: res.statusCode);
+      final json = body is Map ? Map<String, dynamic>.from(body) : null;
+      final status = res.statusCode;
+      if (status == 429 || status >= 500) {
+        final said = json?['message'] ?? json?['error'];
+        throw RoutingException(
+          said is String && said.isNotEmpty
+              ? said
+              : (status == 429
+                  ? 'The router says too many requests'
+                  : 'The router had a problem'),
+          statusCode: status,
+          code: (json?['code'] ?? json?['error_code'])?.toString(),
+          retryAfter: _retryAfter(res),
+        );
       }
-      return Map<String, dynamic>.from(body);
+      if (json == null) {
+        throw RoutingException('The router did not answer with JSON',
+            statusCode: status);
+      }
+      return (json: json, statusCode: status);
     } on TimeoutException {
       throw const RoutingException('The router took too long');
     } on RoutingException {
@@ -174,6 +229,7 @@ class OsrmRouter extends _HttpRouter {
     this.profile = 'driving',
     this.queryParameters = const {},
     super.headers,
+    super.headersBuilder,
     super.client,
     super.timeout = const Duration(seconds: 12),
   });
@@ -211,24 +267,27 @@ class OsrmRouter extends _HttpRouter {
     );
   }
 
-  Future<Map<String, dynamic>> _ask(RouteRequest r, {required bool full}) {
+  Future<({Map<String, dynamic> json, int statusCode})> _ask(RouteRequest r,
+      {required bool full}) {
     if (r.points.length < 2) {
       throw const RoutingException('A route needs at least two points');
     }
-    return _send((c) => c.get(_uri(r, full: full), headers: headers));
+    return _send((c, h) => c.get(_uri(r, full: full), headers: h));
   }
 
   /// OSRM's answer, retried without the heading when no road there runs
-  /// that way.
+  /// that way. A rate limit or a server error is not retried here.
   Future<Map<String, dynamic>> _askWithFallback(RouteRequest r,
       {required bool full}) async {
-    var json = await _ask(r, full: full);
-    if (json['code'] != 'Ok' && r.headingDeg != null) {
-      json = await _ask(r.withoutHeading(), full: full);
+    var answer = await _ask(r, full: full);
+    if (answer.json['code'] != 'Ok' && r.headingDeg != null) {
+      answer = await _ask(r.withoutHeading(), full: full);
     }
+    final json = answer.json;
     if (json['code'] != 'Ok') {
       throw RoutingException(
           '${json['message'] ?? 'No route between these points'}',
+          statusCode: answer.statusCode,
           code: json['code']?.toString());
     }
     return json;
@@ -263,15 +322,22 @@ class ValhallaRouter extends _HttpRouter {
   /// `truck`, `motor_scooter`, `bicycle`, `pedestrian`). [costingOptions]
   /// goes into `costing_options` as is. [language] is the language of the
   /// router's own instruction text ([NavStep.routerInstruction]).
+  /// [queryParameters] go on every request URL, for hosted Valhalla that
+  /// wants its key there (`api_key`).
   ValhallaRouter({
     super.baseUrl = 'https://valhalla1.openstreetmap.de',
     this.costing = 'auto',
     this.costingOptions,
     this.language = 'en-US',
+    this.queryParameters = const {},
     super.headers,
+    super.headersBuilder,
     super.client,
     super.timeout = const Duration(seconds: 12),
   });
+
+  /// Extra query parameters for every request.
+  final Map<String, String> queryParameters;
 
   /// Costing model.
   final String costing;
@@ -297,10 +363,14 @@ class ValhallaRouter extends _HttpRouter {
     ];
   }
 
-  Future<Map<String, dynamic>> _post(Map<String, dynamic> body) {
-    return _send((c) => c.post(
-          Uri.parse('$baseUrl/route'),
-          headers: {'Content-Type': 'application/json', ...headers},
+  Future<({Map<String, dynamic> json, int statusCode})> _post(
+      Map<String, dynamic> body) {
+    final uri = Uri.parse('$baseUrl/route');
+    return _send((c, h) => c.post(
+          queryParameters.isEmpty
+              ? uri
+              : uri.replace(queryParameters: queryParameters),
+          headers: {'Content-Type': 'application/json', ...h},
           body: jsonEncode(body),
         ));
   }
@@ -327,13 +397,15 @@ class ValhallaRouter extends _HttpRouter {
     if (r.points.length < 2) {
       throw const RoutingException('A route needs at least two points');
     }
-    var json = await _post(_body(r, full: full));
-    if (_error(json) != null && r.headingDeg != null) {
-      json = await _post(_body(r.withoutHeading(), full: full));
+    var answer = await _post(_body(r, full: full));
+    if (_error(answer.json) != null && r.headingDeg != null) {
+      answer = await _post(_body(r.withoutHeading(), full: full));
     }
+    final json = answer.json;
     final error = _error(json);
     if (error != null) {
       throw RoutingException(error,
+          statusCode: answer.statusCode,
           code: (json['error_code'] ?? json['code'])?.toString());
     }
     return json;

@@ -232,6 +232,112 @@ void main() {
     });
   });
 
+  group('rate limits and server errors', () {
+    test('a 429 is reported as such, with its Retry-After, asked once',
+        () async {
+      var asked = 0;
+      final router = OsrmRouter(
+        client: MockClient((req) async {
+          asked++;
+          return http.Response(
+              jsonEncode({'message': 'Too Many Requests'}), 429,
+              headers: {'retry-after': '30'});
+        }),
+      );
+      await expectLater(
+        router.route(const RouteRequest(points: [a, b], headingDeg: 90)),
+        throwsA(isA<RoutingException>()
+            .having((e) => e.isRateLimited, 'isRateLimited', isTrue)
+            .having((e) => e.statusCode, 'statusCode', 429)
+            .having(
+                (e) => e.retryAfter, 'retryAfter', const Duration(seconds: 30))
+            .having((e) => e.message, 'message', 'Too Many Requests')),
+      );
+      expect(asked, 1, reason: 'no second try without the heading');
+    });
+
+    test('a 429 page that is not JSON is still a rate limit', () async {
+      final router = ValhallaRouter(
+        client: MockClient(
+            (req) async => http.Response('<html>slow down</html>', 429)),
+      );
+      await expectLater(
+        router.route(const RouteRequest(points: [a, b])),
+        throwsA(isA<RoutingException>()
+            .having((e) => e.isRateLimited, 'isRateLimited', isTrue)
+            .having((e) => e.retryAfter, 'retryAfter', isNull)),
+      );
+    });
+
+    test('a server error is not retried either', () async {
+      var asked = 0;
+      final router = ValhallaRouter(
+        client: MockClient((req) async {
+          asked++;
+          return http.Response('bad gateway', 502);
+        }),
+      );
+      await expectLater(
+        router.route(const RouteRequest(points: [a, b], headingDeg: 10)),
+        throwsA(isA<RoutingException>()
+            .having((e) => e.isServerError, 'isServerError', isTrue)),
+      );
+      expect(asked, 1);
+    });
+
+    test('no route keeps its HTTP status', () async {
+      final router = OsrmRouter(
+        client: MockClient((req) async => http.Response(
+            jsonEncode({'code': 'NoRoute', 'message': 'Impossible route'}),
+            400)),
+      );
+      await expectLater(
+        router.route(const RouteRequest(points: [a, b])),
+        throwsA(isA<RoutingException>()
+            .having((e) => e.statusCode, 'statusCode', 400)
+            .having((e) => e.isRateLimited, 'isRateLimited', isFalse)),
+      );
+    });
+  });
+
+  group('headers and keys', () {
+    test('fixed headers and a builder asked before every request', () async {
+      var token = 0;
+      final seen = <Map<String, String>>[];
+      final router = OsrmRouter(
+        headers: {'X-Api-Key': 'abc'},
+        headersBuilder: () async => {'Authorization': 'Bearer ${++token}'},
+        client: MockClient((req) async {
+          seen.add(req.headers);
+          return http.Response(jsonEncode(osrmAnswer()), 200);
+        }),
+      );
+      await router.route(const RouteRequest(points: [a, b]));
+      await router.route(const RouteRequest(points: [a, b]));
+      expect(seen.map((h) => h['Authorization']), ['Bearer 1', 'Bearer 2']);
+      expect(seen.every((h) => h['X-Api-Key'] == 'abc'), isTrue);
+    });
+
+    test('Valhalla takes query parameters for hosted keys', () async {
+      Uri? url;
+      Map<String, String>? sent;
+      final router = ValhallaRouter(
+        baseUrl: 'https://valhalla.example.com',
+        queryParameters: {'api_key': 'k1'},
+        headersBuilder: () => {'X-Trace': 't'},
+        client: MockClient((req) async {
+          url = req.url;
+          sent = req.headers;
+          return http.Response(jsonEncode(osrmAnswer()), 200);
+        }),
+      );
+      await router.route(const RouteRequest(points: [a, b]));
+      expect(url.toString(), 'https://valhalla.example.com/route?api_key=k1');
+      expect(sent!['X-Trace'], 't');
+      expect(sent!['Content-Type'], startsWith('application/json'));
+    });
+  });
+
   test('CallbackRouter hands the request to your code', () async {
     RouteRequest? seen;
     final router = CallbackRouter(route: (r) async {

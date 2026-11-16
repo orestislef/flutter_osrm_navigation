@@ -258,8 +258,19 @@ class RerouteGate {
     _nextAt = nowMs + settings.rerouteMinSeconds * 1000;
   }
 
-  /// The request came back at [nowMs], with a route or not.
-  void answered(int nowMs, {required bool ok}) {
+  /// The request came back at [nowMs], with a route or not. [waitAtLeast]
+  /// is how long the router asked to wait (its `Retry-After`), which wins
+  /// over the backoff when longer.
+  void answered(int nowMs, {required bool ok, Duration? waitAtLeast}) {
+    _answered(nowMs, ok: ok);
+    final wait = waitAtLeast;
+    if (wait != null) {
+      final until = nowMs + wait.inMilliseconds;
+      if (_nextAt == null || until > _nextAt!) _nextAt = until;
+    }
+  }
+
+  void _answered(int nowMs, {required bool ok}) {
     _inFlight = false;
     if (ok) {
       _failures = 0;

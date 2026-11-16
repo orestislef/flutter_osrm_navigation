@@ -30,6 +30,19 @@ void main() {
     });
   });
 
+  test('RerouteGate waits at least what the router asked', () {
+    final gate = RerouteGate(const NavigationSettings(rerouteMinSeconds: 15));
+    gate.asked(0);
+    gate.answered(1000, ok: false, waitAtLeast: const Duration(seconds: 90));
+    expect(gate.canAsk(90999), isFalse);
+    expect(gate.canAsk(91000), isTrue);
+    gate.asked(91000);
+    // Shorter than the backoff: the backoff wins.
+    gate.answered(92000, ok: false, waitAtLeast: const Duration(seconds: 1));
+    expect(gate.canAsk(121999), isFalse);
+    expect(gate.canAsk(122000), isTrue);
+  });
+
   group('OffRouteDetector', () {
     final line = RouteLine(testPath());
     final end = line.points.last;
