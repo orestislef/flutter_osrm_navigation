@@ -1,3 +1,13 @@
+## 0.2.2
+
+* Stop and destination markers stay upright when the map turns with the road, `stopBuilder` and `destinationBuilder` widgets included. **If your builders turned themselves back against the map rotation, remove that after updating, or they turn twice**
+* `crs` and `cameraConstraint` on `NavigationMap`, passed to flutter_map as they are. Defaults unchanged
+* `controller.say(text, interrupt: false)` for alerts of your own through the navigation voice: it follows the mute, the language and `speakGapMs`, does not cut a prompt off unless `interrupt` is true, and comes through `events` as `InstructionSpoken`
+* `controller.addWaypoint(point, index: ...)` and `removeWaypoint(index)` change the stops while navigating: a new route from where the car is through the stops not reached yet to the same destination, with `Rerouted` and no "Navigating to" said again
+* Fix: a simulation that started a block away from the last real fix had its first fixes taken for GPS jumps and stood still. `RouteSimulator.start` now forgets the recent fixes, and `controller.resetFixHistory()` does it for fixes of your own
+* `positionAt` and `overlayInsets` that change while following (a panel being dragged) move the camera at once, not at the next fix
+* README: the next turn in a notification of your own, and the speed badge with no route
+
 ## 0.2.1
 
 **The map without a route now follows like it does while navigating.** Until now `NavigationMap` with no navigation going kept north up, kept the zoom, stayed where the user left it after a pan, and hid the speed. Now, by default, it turns with the direction of travel (above `settings.headingKmh`, holding its rotation when slower), zooms with the speed, keeps the car low on the screen, follows again after `recenterAfter`, and shows the speed. Each of these is a switch, set them to false for the old map:
