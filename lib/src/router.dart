@@ -119,15 +119,87 @@ class CallbackRouter extends NavRouter {
   bool get supportsEta => _eta != null;
 }
 
+/// Asks several routers in order, the next one when a router is down,
+/// slow, rate limited or failing.
+///
+/// For mixing kinds, say your own Valhalla first and an OSRM behind it:
+///
+/// ```dart
+/// final router = FallbackRouter([
+///   ValhallaRouter(baseUrl: 'https://valhalla.example.com'),
+///   OsrmRouter(baseUrl: 'https://osrm.example.com'),
+/// ]);
+/// ```
+///
+/// A plain "no route between these points" is not asked elsewhere unless
+/// [onNoRoute] is true (routers with different map data may disagree).
+/// For several servers of one kind, `fallbackUrls` on [OsrmRouter] and
+/// [ValhallaRouter] does the same with one router.
+class FallbackRouter extends NavRouter {
+  /// Creates a router that asks [routers] in order.
+  FallbackRouter(List<NavRouter> routers, {this.onNoRoute = false})
+      : assert(routers.isNotEmpty, 'FallbackRouter needs a router'),
+        routers = List.unmodifiable(routers);
+
+  /// The routers, first asked first.
+  final List<NavRouter> routers;
+
+  /// Ask the next router also when one says there is no route.
+  final bool onNoRoute;
+
+  bool _next(Object e) {
+    if (e is! RoutingException) return true;
+    if (onNoRoute) return true;
+    return e.statusCode == null ||
+        e.isRateLimited ||
+        e.isServerError ||
+        e.code == 'NotJson';
+  }
+
+  @override
+  Future<NavRoute> route(RouteRequest request) async {
+    Object? last;
+    for (var i = 0; i < routers.length; i++) {
+      try {
+        return await routers[i].route(request);
+      } catch (e) {
+        last = e;
+        if (i == routers.length - 1 || !_next(e)) rethrow;
+      }
+    }
+    throw last!;
+  }
+
+  @override
+  Future<double?> eta(RouteRequest request) async {
+    for (final r in routers) {
+      if (!r.supportsEta) continue;
+      try {
+        final seconds = await r.eta(request);
+        if (seconds != null) return seconds;
+      } catch (e) {
+        if (!_next(e)) rethrow;
+      }
+    }
+    return null;
+  }
+
+  @override
+  bool get supportsEta => routers.any((r) => r.supportsEta);
+}
+
 /// Shared HTTP plumbing for the built in routers.
 abstract class _HttpRouter extends NavRouter {
   _HttpRouter({
     required String baseUrl,
+    List<String> fallbackUrls = const [],
+    this.retryMainAfter = const Duration(minutes: 5),
     Map<String, String>? headers,
     this.headersBuilder,
     http.Client? client,
     required this.timeout,
-  })  : baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''),
+  })  : baseUrl = _trim(baseUrl),
+        fallbackUrls = List.unmodifiable(fallbackUrls.map(_trim)),
         headers = {
           // Browsers refuse to let a page set the user agent.
           if (!kIsWeb) 'User-Agent': 'flutter_osrm_navigation',
@@ -135,8 +207,28 @@ abstract class _HttpRouter extends NavRouter {
         },
         _client = client;
 
+  static String _trim(String url) => url.replaceAll(RegExp(r'/+$'), '');
+
   /// The server, without a trailing slash.
   final String baseUrl;
+
+  /// Servers to try, in order, when [baseUrl] is down, too slow, rate
+  /// limited or failing (no answer, a timeout, HTTP 429 or 5xx). "No route"
+  /// is not tried elsewhere, the same map data would say the same.
+  final List<String> fallbackUrls;
+
+  /// After falling back, requests stay on the server that answered, and
+  /// [baseUrl] is tried first again once this long has passed.
+  final Duration retryMainAfter;
+
+  /// Index into [baseUrl] then [fallbackUrls] of the server asked first.
+  int _preferred = 0;
+  DateTime? _preferredSince;
+
+  /// The server that answered last, [baseUrl] until a fallback had to be
+  /// used.
+  String get currentUrl =>
+      _preferred == 0 ? baseUrl : fallbackUrls[_preferred - 1];
 
   /// Sent with every request (an API key, a user agent).
   final Map<String, String> headers;
@@ -164,17 +256,63 @@ abstract class _HttpRouter extends NavRouter {
     return seconds == null || seconds < 0 ? null : Duration(seconds: seconds);
   }
 
-  /// The router's JSON answer, with [statusCode] filled in.
+  /// Whether [e] is the server's fault, worth asking another server.
+  static bool _serverFault(RoutingException e) =>
+      e.statusCode == null ||
+      e.isRateLimited ||
+      e.isServerError ||
+      e.code == 'NotJson';
+
+  /// The router's JSON answer from the first server that gives one: the
+  /// preferred one, then the rest in order.
+  Future<({Map<String, dynamic> json, int statusCode})> _send(
+      Future<http.Response> Function(
+              http.Client c, Map<String, String> h, String base)
+          send) async {
+    final bases = [baseUrl, ...fallbackUrls];
+    if (bases.length == 1) return _sendTo(baseUrl, send);
+    final since = _preferredSince;
+    if (_preferred != 0 &&
+        since != null &&
+        DateTime.now().difference(since) >= retryMainAfter) {
+      _preferred = 0;
+      _preferredSince = null;
+    }
+    final order = [
+      _preferred,
+      for (var i = 0; i < bases.length; i++)
+        if (i != _preferred) i,
+    ];
+    RoutingException? last;
+    for (final i in order) {
+      try {
+        final answer = await _sendTo(bases[i], send);
+        if (i != _preferred) {
+          _preferred = i;
+          _preferredSince = i == 0 ? null : DateTime.now();
+        }
+        return answer;
+      } on RoutingException catch (e) {
+        if (!_serverFault(e)) rethrow;
+        last = e;
+      }
+    }
+    throw last!;
+  }
+
+  /// The JSON answer of the server at [base], with [statusCode] filled in.
   ///
   /// Too many requests (429) and server errors (5xx) throw right away, so
-  /// nothing asks again in the same breath and makes it worse.
-  Future<({Map<String, dynamic> json, int statusCode})> _send(
-      Future<http.Response> Function(http.Client c, Map<String, String> h)
+  /// nothing asks the same server again in the same breath.
+  Future<({Map<String, dynamic> json, int statusCode})> _sendTo(
+      String base,
+      Future<http.Response> Function(
+              http.Client c, Map<String, String> h, String base)
           send) async {
     final own = _client == null;
     final client = _client ?? http.Client();
     try {
-      final res = await send(client, await _headers()).timeout(timeout);
+      final res = await send(client, await _headers(), base).timeout(timeout);
       Object? body;
       try {
         body = jsonDecode(utf8.decode(res.bodyBytes));
@@ -198,7 +336,7 @@ abstract class _HttpRouter extends NavRouter {
       }
       if (json == null) {
         throw RoutingException('The router did not answer with JSON',
-            statusCode: status);
+            statusCode: status, code: 'NotJson');
       }
       return (json: json, statusCode: status);
     } on TimeoutException {
@@ -223,6 +361,8 @@ class OsrmRouter extends _HttpRouter {
   ///
   /// [profile] is the profile in the URL, usually `driving`.
   /// [queryParameters] are added to every request (`exclude=toll`).
+  /// [fallbackUrls] are other servers to ask when [baseUrl] is down, slow,
+  /// rate limited or failing.
   /// [speedLimits] asks for `annotations=maxspeed`, the speed limit of
   /// every stretch of the route. Plain OSRM does not know it (Mapbox
   /// compatible servers do), so it is off by default. A server that turns
@@ -232,6 +372,8 @@ class OsrmRouter extends _HttpRouter {
     this.profile = 'driving',
     this.queryParameters = const {},
     this.speedLimits = false,
+    super.fallbackUrls,
+    super.retryMainAfter,
     super.headers,
     super.headersBuilder,
     super.client,
@@ -255,13 +397,13 @@ class OsrmRouter extends _HttpRouter {
       !_noMaxspeed &&
       !queryParameters.containsKey('annotations');
 
-  Uri _uri(RouteRequest r, {required bool full}) {
+  Uri _uri(String base, RouteRequest r, {required bool full}) {
     final coords = r.points
         .map((p) => '${p.longitude.toStringAsFixed(6)},'
             '${p.latitude.toStringAsFixed(6)}')
         .join(';');
     final heading = r.headingDeg;
-    return Uri.parse('$baseUrl/route/v1/$profile/$coords').replace(
+    return Uri.parse('$base/route/v1/$profile/$coords').replace(
       queryParameters: {
         'alternatives': 'false',
         if (full) ...{
@@ -288,7 +430,7 @@ class OsrmRouter extends _HttpRouter {
     if (r.points.length < 2) {
       throw const RoutingException('A route needs at least two points');
     }
-    return _send((c, h) => c.get(_uri(r, full: full), headers: h));
+    return _send((c, h, base) => c.get(_uri(base, r, full: full), headers: h));
   }
 
   /// OSRM's answer, retried without the heading when no road there runs
@@ -345,13 +487,16 @@ class ValhallaRouter extends _HttpRouter {
   /// goes into `costing_options` as is. [language] is the language of the
   /// router's own instruction text ([NavStep.routerInstruction]).
   /// [queryParameters] go on every request URL, for hosted Valhalla that
-  /// wants its key there (`api_key`).
+  /// wants its key there (`api_key`). [fallbackUrls] are other servers to
+  /// ask when [baseUrl] is down, slow, rate limited or failing.
   ValhallaRouter({
     super.baseUrl = 'https://valhalla1.openstreetmap.de',
     this.costing = 'auto',
     this.costingOptions,
     this.language = 'en-US',
     this.queryParameters = const {},
+    super.fallbackUrls,
+    super.retryMainAfter,
     super.headers,
     super.headersBuilder,
     super.client,
@@ -387,11 +532,11 @@ class ValhallaRouter extends _HttpRouter {
 
   Future<({Map<String, dynamic> json, int statusCode})> _post(
       Map<String, dynamic> body) {
-    final uri = Uri.parse('$baseUrl/route');
-    return _send((c, h) => c.post(
+    return _send((c, h, base) => c.post(
           queryParameters.isEmpty
-              ? uri
-              : uri.replace(queryParameters: queryParameters),
+              ? Uri.parse('$base/route')
+              : Uri.parse('$base/route')
+                  .replace(queryParameters: queryParameters),
           headers: {'Content-Type': 'application/json', ...h},
           body: jsonEncode(body),
         ));
