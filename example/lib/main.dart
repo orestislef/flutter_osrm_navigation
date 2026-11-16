@@ -255,7 +255,8 @@ class _NavigationPageState extends State<NavigationPage> {
             if (_nav.isActive && _simulating)
               Positioned(
                 left: 12,
-                bottom: 0,
+                // Above the speed in the bottom corner.
+                bottom: 88,
                 child: SafeArea(child: _detours()),
               ),
             if (!_nav.isActive)
