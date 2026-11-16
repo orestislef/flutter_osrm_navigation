@@ -27,7 +27,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 - **A ready map.** `NavigationMap` with a camera that turns with the road, zooms with speed, keeps the car low on the screen, glides between fixes, and comes back after you pan. The current speed (km/h or mph) with the speed limit sign when the router sends limits, and the GPS accuracy circle, are on by default, each one a switch.
 - **Your colors.** `NavigationStyle` is a theme extension. Out of the box everything follows your `ColorScheme`.
 - **Background.** Keeps navigating and speaking with the app in the background or the screen off.
-- **English and Greek** built in, metric or imperial, and any other language by overriding the words.
+- **Seven languages built in** (English, Greek, Bulgarian, German, French, Spanish, Italian), picked from the app locale in one line, metric or imperial, and any other language by overriding the words and registering it.
 - **A simulator** to drive a route from your desk.
 
 ## Getting started
@@ -340,32 +340,67 @@ The speed follows the units and the language: `km/h` in English, `χλμ/ώ` in 
 
 ## Language and units
 
-```dart
-controller.strings = const GreekNavigationStrings();
-controller.strings = NavigationStrings.forLanguage('el'); // same thing
+Built in: English, Greek, Bulgarian, German, French, Spanish and Italian. Each one has its own voice (`bg-BG`, `de-DE`...), decimal comma or point, clock, and speed unit (`км/ч` in Bulgarian).
 
-controller.settings = controller.settings.copyWith(
-  units: DistanceUnits.imperial,
-);
+The easy way is the app's or the phone's language:
+
+```dart
+// From the app
+controller.strings = NavigationStrings.forLocale(Localizations.localeOf(context));
+
+// From the phone
+controller.strings = NavigationStrings.forLocale(PlatformDispatcher.instance.locale);
+
+// Or by code
+controller.strings = NavigationStrings.forLanguage('bg');
+controller.strings = const BulgarianNavigationStrings(); // same thing
+
+controller.settings = controller.settings.copyWith(units: DistanceUnits.imperial);
 ```
 
-The arrival time in the banner follows the navigation language, not the app's: 24 hour in Greek, the phone's setting in English (`clockTime`).
+A language with nothing built in falls back to English. The arrival time in the banner follows the navigation language, not the app's: 24 hour in most of Europe, the phone's setting in English (`clockTime`).
 
-For another language extend `EnglishNavigationStrings` and override the words. The instruction text is built from small pieces (`turn`, `keep`, `roundabout`, `onStreet`, `inDistance`...), so a translation is mostly a list of short strings. Set `speechLanguage` to the voice's language, for example `fr-FR`.
+### A language of your own
+
+Extend `EnglishNavigationStrings` and override the words, then register it once, so `forLanguage` and `forLocale` find it like a built in one. The instruction text is built from small pieces (`turn`, `keep`, `roundabout`, `onStreet`, `inDistance`...), so a language is mostly a list of short strings. Anything you leave out stays English, so you can start with a few and fill in the rest. Set `speechLanguage` to the voice's language:
 
 ```dart
-class FrenchNavigationStrings extends EnglishNavigationStrings {
-  const FrenchNavigationStrings();
+class RomanianNavigationStrings extends EnglishNavigationStrings {
+  const RomanianNavigationStrings();
 
   @override
-  String get speechLanguage => 'fr-FR';
+  String get speechLanguage => 'ro-RO';
 
   @override
-  String turn(String direction) => 'Tournez à $direction';
+  String get decimalSeparator => ',';
+
+  @override
+  String direction(String modifier) => switch (modifier) {
+        'left' => 'la stânga',
+        'right' => 'la dreapta',
+        _ => super.direction(modifier),
+      };
+
+  @override
+  String turn(String direction) => 'Virați $direction';
+
+  @override
+  String inDistance(String distance, String instruction) =>
+      'După $distance, ${NavigationStrings.lowerFirst(instruction)}';
+
+  @override
+  String metersSpoken(int meters) => '$meters de metri';
 
   // ...
 }
+
+void main() {
+  NavigationStrings.register('ro', () => const RomanianNavigationStrings());
+  runApp(const MyApp());
+}
 ```
+
+`register` also takes a country (`'pt-BR'`), and can replace the wording of a built in language. The built in ones were written carefully but are not all checked by native speakers, so corrections are welcome as issues or pull requests.
 
 ## Background
 
