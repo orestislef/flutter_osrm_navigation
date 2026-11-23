@@ -485,34 +485,6 @@ A few things worth knowing, all seen on a real Android 15 phone:
 - **Google Play.** An app with a location foreground service has to declare it in the Play Console (App content, foreground service permissions). Navigation is an accepted use, describe it as turn-by-turn directions.
 - **Battery savers.** Some makers (Xiaomi, Huawei, Samsung's sleeping apps) stop foreground services on their own. If users report navigation stopping in the background, point them at [dontkillmyapp.com](https://dontkillmyapp.com).
 
-#### The next turn in a notification
-
-The location service's notification is set when the stream starts and does not change while it runs. To show the next turn and the arrival time in the notification shade, post a notification of your own (with [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications), say) and update it from the events:
-
-```dart
-controller.events.listen((event) {
-  if (event is StepChanged || event is EtaUpdated || event is Rerouted) {
-    notifications.show(
-      1,
-      controller.upcomingInstruction,
-      '${controller.strings.shortDuration(controller.remainingDuration.inSeconds.toDouble())}'
-      ' · ${controller.strings.arrivalTime(controller.strings.clockTime(controller.estimatedArrival!, use24h: true))}',
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'navigation', 'Navigation',
-          ongoing: true, onlyAlertOnce: true, importance: Importance.low,
-        ),
-      ),
-    );
-  }
-  if (event is NavigationStopped || event is DestinationReached) {
-    notifications.cancel(1);
-  }
-});
-```
-
-`onlyAlertOnce` keeps it from buzzing on every update. Update on `StepChanged` rather than every `ProgressUpdated`, Android throttles apps that post too often.
-
 ### iOS
 
 Add to `ios/Runner/Info.plist`:
@@ -531,6 +503,8 @@ Add to `ios/Runner/Info.plist`:
 
 `location` keeps fixes coming in the background (with the blue indicator in the status bar), `audio` lets the voice speak there. The voice plays over music, which ducks while it talks, and with the ringer switch off. "While using the app" is enough, iOS keeps background updates going for an app that started them on screen and has the `location` background mode. When an app goes to the App Store, the review asks why it needs background location. Turn-by-turn navigation is the textbook answer.
 
+iOS has no notification for location in the background, only the blue indicator. To show the next turn outside the app, see below.
+
 ### Keeping the screen on
 
 Navigation apps usually keep the screen on while navigating. Use [wakelock_plus](https://pub.dev/packages/wakelock_plus) with the controller:
@@ -540,6 +514,79 @@ controller.addListener(() {
   controller.isActive ? WakelockPlus.enable() : WakelockPlus.disable();
 });
 ```
+
+### The next turn outside the app
+
+The package keeps navigating in the background and tells you everything through `controller.events`. What shows outside the app is up to your app, the same events feed both platforms:
+
+| Event | What to do |
+|---|---|
+| `NavigationStarted` | Show the notification, start the Live Activity |
+| `StepChanged` | A new next turn: `controller.upcomingInstruction`, `controller.upcomingStep` |
+| `ProgressUpdated` | Every fix: `distanceToNextStep`, `remainingDistance`, `remainingDuration`. Update only when the shown text changes |
+| `EtaUpdated` | The arrival time changed: `controller.estimatedArrival` |
+| `RerouteStarted`, `Rerouted` | "Recalculating", then the new turn |
+| `NavigationStopped`, `DestinationReached` | Take it all away |
+
+Use `controller.strings` (`shortDistance`, `shortDuration`, `arrivalTime`, `clockTime`) for the text, so it reads like the banner, in the same language.
+
+**Android.** The location service's notification is required by Android and set when the stream starts, it does not change while it runs. For the next turn, post an ongoing notification of your own and update it:
+
+```dart
+String? shown;
+
+void showTurn(NavigationEvent event) {
+  final s = controller.strings;
+  final distance =
+      s.shortDistance(controller.distanceToNextStep, controller.settings.units);
+  final title = '$distance · ${controller.upcomingInstruction ?? ''}';
+  if (title == shown) return; // nothing new to show
+  shown = title;
+  final eta = controller.estimatedArrival;
+  notifications.show(
+    1,
+    title,
+    eta == null ? null : s.arrivalTime(s.clockTime(eta, use24h: true)),
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'navigation', 'Navigation',
+        ongoing: true, onlyAlertOnce: true, importance: Importance.low,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentSound: false,
+        interruptionLevel: InterruptionLevel.passive,
+      ),
+    ),
+  );
+}
+
+controller.events.listen((event) {
+  switch (event) {
+    case StepChanged() || ProgressUpdated() || EtaUpdated() || Rerouted():
+      showTurn(event);
+    case NavigationStopped() || DestinationReached():
+      shown = null;
+      notifications.cancel(1);
+    default:
+  }
+});
+```
+
+That is [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications). `onlyAlertOnce` and the check on the text keep it from buzzing or posting every second, Android slows down apps that post too often. It sits next to the location notification, Android does not let an app change that one.
+
+**iOS.** There is no ongoing notification on iOS, so the same code shows a new quiet notification for each turn (`passive` keeps it from lighting the screen). The way iOS apps show live directions is a Live Activity, on the lock screen and in the Dynamic Island. It is a small SwiftUI widget extension in your app, fed from the same events, with a package such as [live_activities](https://pub.dev/packages/live_activities). While navigating the app runs in the background (the `location` mode), so it can update the activity itself.
+
+SwiftUI has no Material icons. Send `upcomingStep.maneuverType` and `upcomingStep.modifier` and pick an SF Symbol in the widget:
+
+| `modifier` | SF Symbol |
+|---|---|
+| `left`, `right` | `arrow.turn.up.left`, `arrow.turn.up.right` |
+| `slight left`, `slight right` | `arrow.up.left`, `arrow.up.right` |
+| `sharp left`, `sharp right` | `arrow.turn.left.down`, `arrow.turn.right.down` |
+| `uturn` | `arrow.uturn.down` |
+| `straight` | `arrow.up` |
+| roundabouts (`maneuverType`) | `arrow.triangle.turn.up.right.circle` |
+| `arrive` (`maneuverType`) | `flag.checkered` |
 
 ## The voice
 
