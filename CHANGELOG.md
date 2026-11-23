@@ -1,3 +1,9 @@
+## 0.2.3
+
+* README: the next turn outside the app. Which events to listen to, an ongoing notification on Android, and on iOS (which has no such notification while locating in the background) a quiet notification or a Live Activity, with SF Symbols for the maneuvers
+
+No code changes.
+
 ## 0.2.2
 
 * Stop and destination markers stay upright when the map turns with the road, `stopBuilder` and `destinationBuilder` widgets included. **If your builders turned themselves back against the map rotation, remove that after updating, or they turn twice**
