@@ -47,8 +47,14 @@ class NavigationBanner extends StatelessWidget {
   final List<Widget> footerActions;
 
   /// Your own maneuver icons. [stop] is true for the arrival at a stop.
-  final Widget Function(BuildContext context, NavStep step, Color color,
-      double size, bool stop)? iconBuilder;
+  final Widget Function(
+    BuildContext context,
+    NavStep step,
+    Color color,
+    double size,
+    bool stop,
+  )?
+  iconBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -68,17 +74,28 @@ class NavigationBanner extends StatelessWidget {
   }
 
   Widget _icon(
-      BuildContext context, NavStep step, Color color, double size, bool stop) {
+    BuildContext context,
+    NavStep step,
+    Color color,
+    double size,
+    bool stop,
+  ) {
     final custom = iconBuilder;
     if (custom != null) return custom(context, step, color, size, stop);
-    return Icon(maneuverIcon(step, stop: stop), color: color, size: size);
+    return Icon(
+      maneuverIcon(step, stop: stop),
+      color: color,
+      size: size,
+    );
   }
 
   /// The time in the navigation's language, not the app's: a Greek banner
   /// in an English app says 17:14, not 5:14 PM.
   String _clock(BuildContext context, DateTime time) =>
-      controller.strings.clockTime(time,
-          use24h: MediaQuery.maybeAlwaysUse24HourFormatOf(context) ?? false);
+      controller.strings.clockTime(
+        time,
+        use24h: MediaQuery.maybeAlwaysUse24HourFormatOf(context) ?? false,
+      );
 
   Widget _build(BuildContext context, NavStep step) {
     final s = NavigationStyle.resolve(context, style);
@@ -111,16 +128,21 @@ class NavigationBanner extends StatelessWidget {
       } else {
         voiceButton = IconButton(
           key: const ValueKey('nav-voice'),
-          icon: Icon(c.voiceEnabled ? Icons.volume_up : Icons.volume_off,
-              color: c.voiceEnabled ? on : on.withValues(alpha: 0.6)),
+          icon: Icon(
+            c.voiceEnabled ? Icons.volume_up : Icons.volume_off,
+            color: c.voiceEnabled ? on : on.withValues(alpha: 0.6),
+          ),
           tooltip: c.voiceEnabled ? strings.mute : strings.unmute,
           onPressed: () => c.voiceEnabled = !c.voiceEnabled,
         );
       }
     }
 
-    final titleStyle = s.instructionTextStyle
-        .copyWith(color: on, fontWeight: FontWeight.w700, fontSize: 18);
+    final titleStyle = s.instructionTextStyle.copyWith(
+      color: on,
+      fontWeight: FontWeight.w700,
+      fontSize: 18,
+    );
     final Widget main;
     if (recalculating) {
       main = Row(
@@ -133,10 +155,12 @@ class NavigationBanner extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(strings.recalculating,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: titleStyle),
+            child: Text(
+              strings.recalculating,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: titleStyle,
+            ),
           ),
         ],
       );
@@ -151,17 +175,22 @@ class NavigationBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(strings.arrived(c.arrival),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: titleStyle),
+                Text(
+                  strings.arrived(c.arrival),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle,
+                ),
                 if ((c.destinationName ?? '').isNotEmpty)
-                  Text(c.destinationName!,
-                      key: const ValueKey('nav-arrived-name'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: s.instructionTextStyle
-                          .copyWith(color: on.withValues(alpha: 0.85))),
+                  Text(
+                    c.destinationName!,
+                    key: const ValueKey('nav-arrived-name'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: s.instructionTextStyle.copyWith(
+                      color: on.withValues(alpha: 0.85),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -194,8 +223,10 @@ class NavigationBanner extends StatelessWidget {
                   key: const ValueKey('nav-instruction'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: s.instructionTextStyle
-                      .copyWith(color: on, fontWeight: FontWeight.w600),
+                  style: s.instructionTextStyle.copyWith(
+                    color: on,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -208,27 +239,34 @@ class NavigationBanner extends StatelessWidget {
         Theme.of(context).textTheme.labelLarge ?? const TextStyle(fontSize: 14);
     final eta = c.estimatedArrival;
     final dot = TextSpan(
-        text: '  ·  ',
-        style:
-            TextStyle(color: s.footerMutedColor, fontWeight: FontWeight.w800));
-    final Widget? footerText = !showFooter ||
-            arrived ||
-            c.remainingDistance <= 0
+      text: '  ·  ',
+      style: TextStyle(color: s.footerMutedColor, fontWeight: FontWeight.w800),
+    );
+    final Widget? footerText =
+        !showFooter || arrived || c.remainingDistance <= 0
         ? null
         : Text.rich(
-            TextSpan(children: [
-              TextSpan(
-                  text: strings
-                      .shortDuration(c.remainingDuration.inSeconds.toDouble()),
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: strings.shortDuration(
+                    c.remainingDuration.inSeconds.toDouble(),
+                  ),
                   style: TextStyle(
-                      color: s.footerAccentColor, fontWeight: FontWeight.w800)),
-              dot,
-              TextSpan(text: strings.shortDistance(c.remainingDistance, units)),
-              if (eta != null) ...[
+                    color: s.footerAccentColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 dot,
-                TextSpan(text: strings.arrivalTime(_clock(context, eta))),
+                TextSpan(
+                  text: strings.shortDistance(c.remainingDistance, units),
+                ),
+                if (eta != null) ...[
+                  dot,
+                  TextSpan(text: strings.arrivalTime(_clock(context, eta))),
+                ],
               ],
-            ]),
+            ),
             key: const ValueKey('nav-eta'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -239,7 +277,8 @@ class NavigationBanner extends StatelessWidget {
             ),
           );
     final footerRow = footerText != null;
-    final needsTap = c.voiceEnabled &&
+    final needsTap =
+        c.voiceEnabled &&
         c.voiceState == VoiceState.needsTap &&
         showVoiceButton;
 
@@ -257,26 +296,28 @@ class NavigationBanner extends StatelessWidget {
             color: s.bannerColor,
             child: Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 4, 10),
-              child: Row(children: [
-                Expanded(child: main),
-                if (voiceButton != null) voiceButton,
-                // Nothing to show below (arrived): the buttons come up here
-                // instead of sitting alone on an empty strip.
-                if (!footerRow && footerActions.isNotEmpty)
-                  IconButtonTheme(
-                    data: IconButtonThemeData(
-                      style: IconButton.styleFrom(foregroundColor: on),
-                    ),
-                    child: IconTheme.merge(
-                      data: IconThemeData(color: on),
-                      child: Row(
-                        key: const ValueKey('nav-actions-top'),
-                        mainAxisSize: MainAxisSize.min,
-                        children: footerActions,
+              child: Row(
+                children: [
+                  Expanded(child: main),
+                  if (voiceButton != null) voiceButton,
+                  // Nothing to show below (arrived): the buttons come up here
+                  // instead of sitting alone on an empty strip.
+                  if (!footerRow && footerActions.isNotEmpty)
+                    IconButtonTheme(
+                      data: IconButtonThemeData(
+                        style: IconButton.styleFrom(foregroundColor: on),
+                      ),
+                      child: IconTheme.merge(
+                        data: IconThemeData(color: on),
+                        child: Row(
+                          key: const ValueKey('nav-actions-top'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: footerActions,
+                        ),
                       ),
                     ),
-                  ),
-              ]),
+                ],
+              ),
             ),
           ),
           if (then != null)
@@ -284,20 +325,26 @@ class NavigationBanner extends StatelessWidget {
               key: const ValueKey('nav-then'),
               color: s.thenColor,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 child: Row(
                   children: [
-                    Text(strings.thenLabel,
-                        style: labelStyle.copyWith(color: s.onThenColor)),
+                    Text(
+                      strings.thenLabel,
+                      style: labelStyle.copyWith(color: s.onThenColor),
+                    ),
                     const SizedBox(width: 8),
                     _icon(context, then, s.onThenColor, 20, false),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(c.thenInstruction ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: labelStyle.copyWith(color: s.onThenColor)),
+                      child: Text(
+                        c.thenInstruction ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: labelStyle.copyWith(color: s.onThenColor),
+                      ),
                     ),
                   ],
                 ),
@@ -308,25 +355,29 @@ class NavigationBanner extends StatelessWidget {
               key: const ValueKey('nav-gps'),
               color: s.offRouteColor,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 child: Row(
                   children: [
                     Icon(
-                        c.gpsSignal == GpsSignal.lost
-                            ? Icons.gps_off
-                            : Icons.gps_not_fixed,
-                        size: 18,
-                        color: s.onOffRouteColor),
+                      c.gpsSignal == GpsSignal.lost
+                          ? Icons.gps_off
+                          : Icons.gps_not_fixed,
+                      size: 18,
+                      color: s.onOffRouteColor,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                          c.gpsSignal == GpsSignal.lost
-                              ? strings.gpsLost
-                              : strings.gpsWeak,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: labelStyle.copyWith(color: s.onOffRouteColor)),
+                        c.gpsSignal == GpsSignal.lost
+                            ? strings.gpsLost
+                            : strings.gpsWeak,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: labelStyle.copyWith(color: s.onOffRouteColor),
+                      ),
                     ),
                   ],
                 ),
@@ -340,12 +391,16 @@ class NavigationBanner extends StatelessWidget {
               key: const ValueKey('nav-off-route'),
               color: s.offRouteColor,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Text(strings.offRoute,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: labelStyle.copyWith(color: s.onOffRouteColor)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: Text(
+                  strings.offRoute,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: labelStyle.copyWith(color: s.onOffRouteColor),
+                ),
               ),
             ),
           if (needsTap)
@@ -355,19 +410,25 @@ class NavigationBanner extends StatelessWidget {
                 key: const ValueKey('nav-voice-tap-text'),
                 onTap: c.unlockVoice,
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
-                      Icon(Icons.record_voice_over,
-                          size: 18, color: s.onVoiceTapColor),
+                      Icon(
+                        Icons.record_voice_over,
+                        size: 18,
+                        color: s.onVoiceTapColor,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(strings.voiceTap,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                labelStyle.copyWith(color: s.onVoiceTapColor)),
+                        child: Text(
+                          strings.voiceTap,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: labelStyle.copyWith(color: s.onVoiceTapColor),
+                        ),
                       ),
                     ],
                   ),

@@ -47,8 +47,8 @@ class NavigationRouteLayer extends StatelessWidget {
         final behind = s.traveledColor == null
             ? const <LatLng>[]
             : (cut == null || line == null
-                ? controller.traveledLine
-                : line.traveledTo(cut));
+                  ? controller.traveledLine
+                  : line.traveledTo(cut));
         return PolylineLayer(
           polylines: [
             if (behind.length >= 2)
@@ -100,7 +100,7 @@ class NavigationStopsLayer extends StatelessWidget {
   /// Your own widget for each stop. [index] is 0 for the first stop of the
   /// trip. Stop and destination markers stay upright when the map turns.
   final Widget Function(BuildContext context, int index, LatLng point)?
-      stopBuilder;
+  stopBuilder;
 
   /// Your own widget for the destination.
   final Widget Function(BuildContext context, LatLng point)? destinationBuilder;
@@ -128,7 +128,8 @@ class NavigationStopsLayer extends StatelessWidget {
                 rotate: true,
                 width: size,
                 height: size,
-                child: stopBuilder?.call(context, first + i, stops[i]) ??
+                child:
+                    stopBuilder?.call(context, first + i, stops[i]) ??
                     _Dot(
                       color: s.stopColor,
                       border: s.puckBorderColor,
@@ -147,12 +148,16 @@ class NavigationStopsLayer extends StatelessWidget {
               rotate: true,
               width: size,
               height: size,
-              child: destinationBuilder?.call(context, destination) ??
+              child:
+                  destinationBuilder?.call(context, destination) ??
                   _Dot(
                     color: s.destinationColor,
                     border: s.puckBorderColor,
-                    child: Icon(Icons.flag,
-                        color: s.onMarkerColor, size: size * 0.55),
+                    child: Icon(
+                      Icons.flag,
+                      color: s.onMarkerColor,
+                      size: size * 0.55,
+                    ),
                   ),
             ),
           ],
@@ -178,7 +183,10 @@ class _Dot extends StatelessWidget {
         border: Border.all(color: border, width: 2),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 1)),
+            color: Color(0x40000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: Center(child: child),
@@ -236,7 +244,8 @@ class NavigationPositionLayer extends StatelessWidget {
     final s = NavigationStyle.resolve(context, style);
     final h = heading;
     final acc = accuracyM;
-    final child = marker ??
+    final child =
+        marker ??
         CustomPaint(
           size: Size.square(s.puckSize),
           painter: PuckPainter(
@@ -250,15 +259,17 @@ class NavigationPositionLayer extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         if (acc != null && acc > 5)
-          CircleLayer(circles: [
-            CircleMarker(
-              point: p,
-              radius: acc,
-              useRadiusInMeter: true,
-              color: s.accuracyColor,
-              borderStrokeWidth: 0,
-            ),
-          ]),
+          CircleLayer(
+            circles: [
+              CircleMarker(
+                point: p,
+                radius: acc,
+                useRadiusInMeter: true,
+                color: s.accuracyColor,
+                borderStrokeWidth: 0,
+              ),
+            ],
+          ),
         MarkerLayer(
           markers: [
             Marker(
@@ -303,11 +314,12 @@ class PuckPainter extends CustomPainter {
     final c = size.center(Offset.zero);
     final r = size.shortestSide / 2;
     canvas.drawCircle(
-        c.translate(0, 1.5),
-        r - 1,
-        Paint()
-          ..color = const Color(0x55000000)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+      c.translate(0, 1.5),
+      r - 1,
+      Paint()
+        ..color = const Color(0x55000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
     canvas.drawCircle(c, r - 1, Paint()..color = border);
     canvas.drawCircle(c, r - 1 - r * 0.14, Paint()..color = color);
     if (!showArrow) return;

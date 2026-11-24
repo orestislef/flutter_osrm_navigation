@@ -62,7 +62,8 @@ class RoutingException implements Exception {
   bool get isServerError => statusCode != null && statusCode! >= 500;
 
   @override
-  String toString() => 'RoutingException: $message'
+  String toString() =>
+      'RoutingException: $message'
       '${statusCode == null ? '' : ' (HTTP $statusCode)'}'
       '${code == null ? '' : ' [$code]'}';
 }
@@ -102,8 +103,8 @@ class CallbackRouter extends NavRouter {
   const CallbackRouter({
     required Future<NavRoute> Function(RouteRequest request) route,
     Future<double?> Function(RouteRequest request)? eta,
-  })  : _route = route,
-        _eta = eta;
+  }) : _route = route,
+       _eta = eta;
 
   final Future<NavRoute> Function(RouteRequest request) _route;
   final Future<double?> Function(RouteRequest request)? _eta;
@@ -138,8 +139,8 @@ class CallbackRouter extends NavRouter {
 class FallbackRouter extends NavRouter {
   /// Creates a router that asks [routers] in order.
   FallbackRouter(List<NavRouter> routers, {this.onNoRoute = false})
-      : assert(routers.isNotEmpty, 'FallbackRouter needs a router'),
-        routers = List.unmodifiable(routers);
+    : assert(routers.isNotEmpty, 'FallbackRouter needs a router'),
+      routers = List.unmodifiable(routers);
 
   /// The routers, first asked first.
   final List<NavRouter> routers;
@@ -198,14 +199,14 @@ abstract class _HttpRouter extends NavRouter {
     this.headersBuilder,
     http.Client? client,
     required this.timeout,
-  })  : baseUrl = _trim(baseUrl),
-        fallbackUrls = List.unmodifiable(fallbackUrls.map(_trim)),
-        headers = {
-          // Browsers refuse to let a page set the user agent.
-          if (!kIsWeb) 'User-Agent': 'flutter_osrm_navigation',
-          ...?headers,
-        },
-        _client = client;
+  }) : baseUrl = _trim(baseUrl),
+       fallbackUrls = List.unmodifiable(fallbackUrls.map(_trim)),
+       headers = {
+         // Browsers refuse to let a page set the user agent.
+         if (!kIsWeb) 'User-Agent': 'flutter_osrm_navigation',
+         ...?headers,
+       },
+       _client = client;
 
   static String _trim(String url) => url.replaceAll(RegExp(r'/+$'), '');
 
@@ -266,9 +267,13 @@ abstract class _HttpRouter extends NavRouter {
   /// The router's JSON answer from the first server that gives one: the
   /// preferred one, then the rest in order.
   Future<({Map<String, dynamic> json, int statusCode})> _send(
-      Future<http.Response> Function(
-              http.Client c, Map<String, String> h, String base)
-          send) async {
+    Future<http.Response> Function(
+      http.Client c,
+      Map<String, String> h,
+      String base,
+    )
+    send,
+  ) async {
     final bases = [baseUrl, ...fallbackUrls];
     if (bases.length == 1) return _sendTo(baseUrl, send);
     final since = _preferredSince;
@@ -305,10 +310,14 @@ abstract class _HttpRouter extends NavRouter {
   /// Too many requests (429) and server errors (5xx) throw right away, so
   /// nothing asks the same server again in the same breath.
   Future<({Map<String, dynamic> json, int statusCode})> _sendTo(
+    String base,
+    Future<http.Response> Function(
+      http.Client c,
+      Map<String, String> h,
       String base,
-      Future<http.Response> Function(
-              http.Client c, Map<String, String> h, String base)
-          send) async {
+    )
+    send,
+  ) async {
     final own = _client == null;
     final client = _client ?? http.Client();
     try {
@@ -327,16 +336,19 @@ abstract class _HttpRouter extends NavRouter {
           said is String && said.isNotEmpty
               ? said
               : (status == 429
-                  ? 'The router says too many requests'
-                  : 'The router had a problem'),
+                    ? 'The router says too many requests'
+                    : 'The router had a problem'),
           statusCode: status,
           code: (json?['code'] ?? json?['error_code'])?.toString(),
           retryAfter: _retryAfter(res),
         );
       }
       if (json == null) {
-        throw RoutingException('The router did not answer with JSON',
-            statusCode: status, code: 'NotJson');
+        throw RoutingException(
+          'The router did not answer with JSON',
+          statusCode: status,
+          code: 'NotJson',
+        );
       }
       return (json: json, statusCode: status);
     } on TimeoutException {
@@ -399,8 +411,11 @@ class OsrmRouter extends _HttpRouter {
 
   Uri _uri(String base, RouteRequest r, {required bool full}) {
     final coords = r.points
-        .map((p) => '${p.longitude.toStringAsFixed(6)},'
-            '${p.latitude.toStringAsFixed(6)}')
+        .map(
+          (p) =>
+              '${p.longitude.toStringAsFixed(6)},'
+              '${p.latitude.toStringAsFixed(6)}',
+        )
         .join(';');
     final heading = r.headingDeg;
     return Uri.parse('$base/route/v1/$profile/$coords').replace(
@@ -425,8 +440,10 @@ class OsrmRouter extends _HttpRouter {
     );
   }
 
-  Future<({Map<String, dynamic> json, int statusCode})> _ask(RouteRequest r,
-      {required bool full}) {
+  Future<({Map<String, dynamic> json, int statusCode})> _ask(
+    RouteRequest r, {
+    required bool full,
+  }) {
     if (r.points.length < 2) {
       throw const RoutingException('A route needs at least two points');
     }
@@ -435,8 +452,10 @@ class OsrmRouter extends _HttpRouter {
 
   /// OSRM's answer, retried without the heading when no road there runs
   /// that way. A rate limit or a server error is not retried here.
-  Future<Map<String, dynamic>> _askWithFallback(RouteRequest r,
-      {required bool full}) async {
+  Future<Map<String, dynamic>> _askWithFallback(
+    RouteRequest r, {
+    required bool full,
+  }) async {
     final askedMaxspeed = full && _askMaxspeed;
     var answer = await _ask(r, full: full);
     if (askedMaxspeed && answer.json['code'] == 'InvalidQuery') {
@@ -450,9 +469,10 @@ class OsrmRouter extends _HttpRouter {
     final json = answer.json;
     if (json['code'] != 'Ok') {
       throw RoutingException(
-          '${json['message'] ?? 'No route between these points'}',
-          statusCode: answer.statusCode,
-          code: json['code']?.toString());
+        '${json['message'] ?? 'No route between these points'}',
+        statusCode: answer.statusCode,
+        code: json['code']?.toString(),
+      );
     }
     return json;
   }
@@ -531,36 +551,41 @@ class ValhallaRouter extends _HttpRouter {
   }
 
   Future<({Map<String, dynamic> json, int statusCode})> _post(
-      Map<String, dynamic> body) {
-    return _send((c, h, base) => c.post(
-          queryParameters.isEmpty
-              ? Uri.parse('$base/route')
-              : Uri.parse('$base/route')
+    Map<String, dynamic> body,
+  ) {
+    return _send(
+      (c, h, base) => c.post(
+        queryParameters.isEmpty
+            ? Uri.parse('$base/route')
+            : Uri.parse('$base/route')
                   .replace(queryParameters: queryParameters),
-          headers: {'Content-Type': 'application/json', ...h},
-          body: jsonEncode(body),
-        ));
+        headers: {'Content-Type': 'application/json', ...h},
+        body: jsonEncode(body),
+      ),
+    );
   }
 
   Map<String, dynamic> _body(RouteRequest r, {required bool full}) => {
-        'locations': _locations(r),
-        'costing': costing,
-        if (costingOptions != null) 'costing_options': costingOptions,
-        if (full) ...{
-          'format': 'osrm',
-          'shape_format': 'polyline6',
-          'directions_options': {'units': 'kilometers', 'language': language},
-        } else
-          'directions_options': {'directions_type': 'none'},
-      };
+    'locations': _locations(r),
+    'costing': costing,
+    if (costingOptions != null) 'costing_options': costingOptions,
+    if (full) ...{
+      'format': 'osrm',
+      'shape_format': 'polyline6',
+      'directions_options': {'units': 'kilometers', 'language': language},
+    } else
+      'directions_options': {'directions_type': 'none'},
+  };
 
   static String? _error(Map<String, dynamic> json) {
     if (json['code'] == 'Ok' || json['trip'] is Map) return null;
     return '${json['error'] ?? json['message'] ?? 'No route between these points'}';
   }
 
-  Future<Map<String, dynamic>> _ask(RouteRequest r,
-      {required bool full}) async {
+  Future<Map<String, dynamic>> _ask(
+    RouteRequest r, {
+    required bool full,
+  }) async {
     if (r.points.length < 2) {
       throw const RoutingException('A route needs at least two points');
     }
@@ -571,9 +596,11 @@ class ValhallaRouter extends _HttpRouter {
     final json = answer.json;
     final error = _error(json);
     if (error != null) {
-      throw RoutingException(error,
-          statusCode: answer.statusCode,
-          code: (json['error_code'] ?? json['code'])?.toString());
+      throw RoutingException(
+        error,
+        statusCode: answer.statusCode,
+        code: (json['error_code'] ?? json['code'])?.toString(),
+      );
     }
     return json;
   }

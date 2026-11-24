@@ -4,19 +4,23 @@ import 'package:latlong2/latlong.dart';
 
 import 'support/tracks.dart';
 
-Map<String, dynamic> step(String type, LatLng at,
-        {String? modifier, String name = '', double distance = 100}) =>
-    {
-      'name': name,
-      'distance': distance,
-      'duration': distance / 10,
-      'driving_side': 'right',
-      'maneuver': {
-        'type': type,
-        if (modifier != null) 'modifier': modifier,
-        'location': [at.longitude, at.latitude],
-      },
-    };
+Map<String, dynamic> step(
+  String type,
+  LatLng at, {
+  String? modifier,
+  String name = '',
+  double distance = 100,
+}) => {
+  'name': name,
+  'distance': distance,
+  'duration': distance / 10,
+  'driving_side': 'right',
+  'maneuver': {
+    'type': type,
+    if (modifier != null) 'modifier': modifier,
+    'location': [at.longitude, at.latitude],
+  },
+};
 
 void main() {
   final cornerA = offsetBy(trackStart, 90, 600);
@@ -24,35 +28,45 @@ void main() {
   final end = offsetBy(cornerB, 90, 400);
 
   Map<String, dynamic> response({required Object geometry}) => {
-        'code': 'Ok',
-        'routes': [
+    'code': 'Ok',
+    'routes': [
+      {
+        'distance': 1500,
+        'duration': 150,
+        'geometry': geometry,
+        'legs': [
           {
-            'distance': 1500,
-            'duration': 150,
-            'geometry': geometry,
-            'legs': [
-              {
-                'steps': [
-                  step('depart', trackStart, name: 'Egnatia', distance: 600),
-                  step('turn', cornerA,
-                      modifier: 'left', name: 'Agias Sofias', distance: 500),
-                  step('turn', cornerB, modifier: 'right', distance: 400),
-                  step('arrive', end, distance: 0),
-                ],
-              },
+            'steps': [
+              step('depart', trackStart, name: 'Egnatia', distance: 600),
+              step(
+                'turn',
+                cornerA,
+                modifier: 'left',
+                name: 'Agias Sofias',
+                distance: 500,
+              ),
+              step('turn', cornerB, modifier: 'right', distance: 400),
+              step('arrive', end, distance: 0),
             ],
           },
         ],
-      };
+      },
+    ],
+  };
 
   test('reads a whole OSRM response', () {
-    final route =
-        NavRoute.fromOsrmJson(response(geometry: encodePolyline(testPath())));
+    final route = NavRoute.fromOsrmJson(
+      response(geometry: encodePolyline(testPath())),
+    );
     expect(route.usable, isTrue);
     expect(route.distanceM, 1500);
     expect(route.durationS, 150);
-    expect(route.steps.map((s) => s.maneuverType),
-        ['depart', 'turn', 'turn', 'arrive']);
+    expect(route.steps.map((s) => s.maneuverType), [
+      'depart',
+      'turn',
+      'turn',
+      'arrive',
+    ]);
     expect(route.steps[1].modifier, 'left');
     expect(route.steps[1].road, 'Agias Sofias');
     expect(metresBetween(route.steps[1].location, cornerA), lessThan(0.5));
@@ -62,25 +76,31 @@ void main() {
 
   test('works out polyline precision 6 on its own', () {
     final route = NavRoute.fromOsrmJson(
-        response(geometry: encodePolyline(testPath(), precision: 6)));
+      response(geometry: encodePolyline(testPath(), precision: 6)),
+    );
     expect(metresBetween(route.points.first, trackStart), lessThan(0.5));
     expect(metresBetween(route.points.last, end), lessThan(0.5));
   });
 
   test('reads a GeoJSON line', () {
-    final route = NavRoute.fromOsrmJson(response(geometry: {
-      'type': 'LineString',
-      'coordinates': [
-        for (final p in testPath()) [p.longitude, p.latitude],
-      ],
-    }));
+    final route = NavRoute.fromOsrmJson(
+      response(
+        geometry: {
+          'type': 'LineString',
+          'coordinates': [
+            for (final p in testPath()) [p.longitude, p.latitude],
+          ],
+        },
+      ),
+    );
     expect(route.points, hasLength(testPath().length));
   });
 
   test('a single route object is fine too', () {
     final json = response(geometry: encodePolyline(testPath()));
     final route = NavRoute.fromOsrmJson(
-        Map<String, dynamic>.from((json['routes'] as List).first as Map));
+      Map<String, dynamic>.from((json['routes'] as List).first as Map),
+    );
     expect(route.steps, hasLength(4));
   });
 
@@ -117,8 +137,10 @@ void main() {
   });
 
   test('bad input fails loudly, odd steps do not', () {
-    expect(() => NavRoute.fromOsrmJson({'code': 'NoRoute'}),
-        throwsFormatException);
+    expect(
+      () => NavRoute.fromOsrmJson({'code': 'NoRoute'}),
+      throwsFormatException,
+    );
     final s = NavStep.fromOsrmJson({
       'maneuver': {'location': 'nowhere'},
     });
@@ -134,7 +156,7 @@ void main() {
               trackStart,
               offsetBy(trackStart, 90, 100),
               cornerOf(200),
-              cornerOf(300)
+              cornerOf(300),
             ]
           : [trackStart, offsetBy(trackStart, 90, 100), cornerOf(200)];
       return {
@@ -146,7 +168,7 @@ void main() {
               {
                 'steps': [
                   step('depart', trackStart),
-                  step('arrive', path.last)
+                  step('arrive', path.last),
                 ],
                 'annotation': {'maxspeed': maxspeed},
               },
@@ -157,11 +179,13 @@ void main() {
     }
 
     test('km/h, mph, unknown and none, one per segment', () {
-      final route = NavRoute.fromOsrmJson(withLimits([
-        {'speed': 50, 'unit': 'km/h'},
-        {'speed': 30, 'unit': 'mph'},
-        {'unknown': true},
-      ]));
+      final route = NavRoute.fromOsrmJson(
+        withLimits([
+          {'speed': 50, 'unit': 'km/h'},
+          {'speed': 30, 'unit': 'mph'},
+          {'unknown': true},
+        ]),
+      );
       expect(route.speedLimitsKmh, hasLength(3));
       expect(route.speedLimitsKmh[0], 50);
       expect(route.speedLimitsKmh[1], closeTo(48.28, 0.01));
@@ -169,15 +193,19 @@ void main() {
     });
 
     test('limits that do not line up with the line are left out', () {
-      final route = NavRoute.fromOsrmJson(withLimits([
-        {'speed': 50, 'unit': 'km/h'},
-      ]));
+      final route = NavRoute.fromOsrmJson(
+        withLimits([
+          {'speed': 50, 'unit': 'km/h'},
+        ]),
+      );
       expect(route.speedLimitsKmh, isEmpty);
-      final none = NavRoute.fromOsrmJson(withLimits([
-        {'none': true},
-        {'unknown': true},
-        {'unknown': true},
-      ]));
+      final none = NavRoute.fromOsrmJson(
+        withLimits([
+          {'none': true},
+          {'unknown': true},
+          {'unknown': true},
+        ]),
+      );
       expect(none.speedLimitsKmh, isEmpty, reason: 'nothing known at all');
     });
   });

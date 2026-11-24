@@ -223,7 +223,7 @@ class NavigationMap extends StatefulWidget {
   /// first stop of the trip. A numbered dot when null. It stays upright
   /// when the map turns, no need to turn it back yourself.
   final Widget Function(BuildContext context, int index, LatLng point)?
-      stopBuilder;
+  stopBuilder;
 
   /// Your own widget for the destination. A flag in a dot when null. It
   /// stays upright when the map turns.
@@ -325,8 +325,10 @@ class NavigationMapState extends State<NavigationMap>
     }
     final t = Curves.easeInOut.transform(_fly.value);
     _map.move(
-      LatLng(from.latitude + (to.latitude - from.latitude) * t,
-          from.longitude + (to.longitude - from.longitude) * t),
+      LatLng(
+        from.latitude + (to.latitude - from.latitude) * t,
+        from.longitude + (to.longitude - from.longitude) * t,
+      ),
       _flyFromZoom + (_flyToZoom - _flyFromZoom) * t,
     );
   }
@@ -383,8 +385,9 @@ class NavigationMapState extends State<NavigationMap>
     _glide = AnimationController(vsync: this, duration: widget.glide)
       ..addListener(_onTick);
     _fly = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700))
-      ..addListener(_onFly);
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..addListener(_onFly);
     _wasActive = widget.controller.isActive;
     _pos = widget.controller.displayPosition;
     _heading = widget.controller.displayHeading;
@@ -466,7 +469,8 @@ class NavigationMapState extends State<NavigationMap>
     final target = _nav.displayPosition;
     final heading = _nav.displayHeading;
     if (target == null) return;
-    final moved = target != _toPos ||
+    final moved =
+        target != _toPos ||
         heading != _toHeading ||
         !identical(_nav.routeLine, _line);
     if (!moved && !ended && !started) return;
@@ -506,7 +510,8 @@ class NavigationMapState extends State<NavigationMap>
     if ((first || ease) && canAnimate && _ready && _following) {
       _blendFrom = _map.camera.center;
     }
-    final jump = first ||
+    final jump =
+        first ||
         _noAnimations ||
         widget.glide == Duration.zero ||
         metresBetween(_pos!, target) > 1000;
@@ -587,8 +592,9 @@ class NavigationMapState extends State<NavigationMap>
     final camera = _map.camera;
     final size = camera.nonRotatedSize;
     if (size.width <= 0 || size.height <= 0) return p;
-    final placed =
-        camera.withRotation(rotation).withPosition(center: p, zoom: zoom);
+    final placed = camera
+        .withRotation(rotation)
+        .withPosition(center: p, zoom: zoom);
     final middle = size.center(Offset.zero);
     final focus = Offset(size.width / 2, size.height * widget.positionAt);
     return placed.screenOffsetToLatLng(middle + (middle - focus));
@@ -682,69 +688,74 @@ class NavigationMapState extends State<NavigationMap>
 
     // The banner, the speed and the re-center button, all inside the safe
     // area and overlayInsets, each with its own padding on top.
-    Widget place(EdgeInsetsGeometry padding, AlignmentGeometry alignment,
-            Widget child) =>
-        Positioned.fill(
+    Widget place(
+      EdgeInsetsGeometry padding,
+      AlignmentGeometry alignment,
+      Widget child,
+    ) => Positioned.fill(
+      child: Padding(
+        padding: widget.overlayInsets,
+        child: SafeArea(
           child: Padding(
-            padding: widget.overlayInsets,
-            child: SafeArea(
-              child: Padding(
-                padding: padding,
-                child: Align(alignment: alignment, child: child),
-              ),
-            ),
+            padding: padding,
+            child: Align(alignment: alignment, child: child),
           ),
-        );
+        ),
+      ),
+    );
 
     // SizedBox.expand: with loose constraints and an overlay that takes no
     // room, a Stack sizes itself to that overlay and the map vanished.
     return SizedBox.expand(
-        child: Stack(
-      children: [
-        // The banner checks the GPS too; this one covers showBanner false.
-        Positioned.fill(child: GpsTicker(controller: _nav, child: map)),
-        if (widget.showBanner)
-          place(
-            widget.bannerPadding,
-            Alignment.topCenter,
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: widget.bannerMaxWidth),
-              child: NavigationBanner(
-                controller: _nav,
-                style: widget.style,
-                footerActions: widget.bannerActions,
+      child: Stack(
+        children: [
+          // The banner checks the GPS too; this one covers showBanner false.
+          Positioned.fill(
+            child: GpsTicker(controller: _nav, child: map),
+          ),
+          if (widget.showBanner)
+            place(
+              widget.bannerPadding,
+              Alignment.topCenter,
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: widget.bannerMaxWidth),
+                child: NavigationBanner(
+                  controller: _nav,
+                  style: widget.style,
+                  footerActions: widget.bannerActions,
+                ),
               ),
             ),
-          ),
-        if (widget.showSpeed)
-          place(
-            widget.speedPadding,
-            widget.speedAlignment,
-            NavigationSpeedometer(
-              controller: _nav,
-              style: widget.style,
-              showSpeedLimit: widget.showSpeedLimit,
-              onlyWhileNavigating: widget.speedOnlyWhileNavigating,
+          if (widget.showSpeed)
+            place(
+              widget.speedPadding,
+              widget.speedAlignment,
+              NavigationSpeedometer(
+                controller: _nav,
+                style: widget.style,
+                showSpeedLimit: widget.showSpeedLimit,
+                onlyWhileNavigating: widget.speedOnlyWhileNavigating,
+              ),
             ),
-          ),
-        if (widget.showRecenterButton &&
-            !_following &&
-            _nav.displayPosition != null)
-          place(
-            widget.recenterPadding,
-            widget.recenterAlignment,
-            FloatingActionButton.extended(
-              key: const ValueKey('nav-recenter'),
-              heroTag: null,
-              backgroundColor: s.buttonColor,
-              foregroundColor: s.onButtonColor,
-              onPressed: _recenter,
-              icon: const Icon(Icons.navigation),
-              label: Text(_nav.strings.recenter),
+          if (widget.showRecenterButton &&
+              !_following &&
+              _nav.displayPosition != null)
+            place(
+              widget.recenterPadding,
+              widget.recenterAlignment,
+              FloatingActionButton.extended(
+                key: const ValueKey('nav-recenter'),
+                heroTag: null,
+                backgroundColor: s.buttonColor,
+                foregroundColor: s.onButtonColor,
+                onPressed: _recenter,
+                icon: const Icon(Icons.navigation),
+                label: Text(_nav.strings.recenter),
+              ),
             ),
-          ),
-        ...widget.overlays,
-      ],
-    ));
+          ...widget.overlays,
+        ],
+      ),
+    );
   }
 }

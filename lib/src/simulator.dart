@@ -128,8 +128,9 @@ class RouteSimulator {
     final line = RouteLine(route.points);
     _line = line.isEmpty ? null : line;
     final here = fromStart ? null : _position;
-    _along =
-        here == null || _line == null ? 0 : (_line!.match(here)?.alongM ?? 0);
+    _along = here == null || _line == null
+        ? 0
+        : (_line!.match(here)?.alongM ?? 0);
   }
 
   void _tick() {
@@ -180,11 +181,13 @@ class RouteSimulator {
   }
 
   void _emitAt(LatLng p, double heading, {double? speedMps}) {
-    controller.updateLocation(NavFix(
-      p,
-      accuracyM: accuracyM,
-      speedMps: speedMps ?? speedKmh / 3.6,
-      headingDeg: heading,
-    ));
+    controller.updateLocation(
+      NavFix(
+        p,
+        accuracyM: accuracyM,
+        speedMps: speedMps ?? speedKmh / 3.6,
+        headingDeg: heading,
+      ),
+    );
   }
 }

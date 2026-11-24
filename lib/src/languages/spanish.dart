@@ -13,16 +13,16 @@ class SpanishNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'sharp right' => 'bruscamente a la derecha',
-        'right' => 'a la derecha',
-        'slight right' => 'ligeramente a la derecha',
-        'straight' => 'recto',
-        'slight left' => 'ligeramente a la izquierda',
-        'left' => 'a la izquierda',
-        'sharp left' => 'bruscamente a la izquierda',
-        'uturn' => 'cambio de sentido',
-        _ => modifier,
-      };
+    'sharp right' => 'bruscamente a la derecha',
+    'right' => 'a la derecha',
+    'slight right' => 'ligeramente a la derecha',
+    'straight' => 'recto',
+    'slight left' => 'ligeramente a la izquierda',
+    'left' => 'a la izquierda',
+    'sharp left' => 'bruscamente a la izquierda',
+    'uturn' => 'cambio de sentido',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'norte',
@@ -74,10 +74,10 @@ class SpanishNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Llegada al destino',
-        ArrivalType.stop => 'Llegada a la parada',
-        ArrivalType.pickup => 'Llegada al punto de recogida',
-      };
+    ArrivalType.destination => 'Llegada al destino',
+    ArrivalType.stop => 'Llegada a la parada',
+    ArrivalType.pickup => 'Llegada al punto de recogida',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -100,17 +100,17 @@ class SpanishNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'llegarás al destino',
-        ArrivalType.stop => 'llegarás a la parada',
-        ArrivalType.pickup => 'llegarás al punto de recogida',
-      };
+    ArrivalType.destination => 'llegarás al destino',
+    ArrivalType.stop => 'llegarás a la parada',
+    ArrivalType.pickup => 'llegarás al punto de recogida',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Has llegado a tu destino',
-        ArrivalType.stop => 'Has llegado a la parada',
-        ArrivalType.pickup => 'Has llegado al punto de recogida',
-      };
+    ArrivalType.destination => 'Has llegado a tu destino',
+    ArrivalType.stop => 'Has llegado a la parada',
+    ArrivalType.pickup => 'Has llegado al punto de recogida',
+  };
 
   @override
   String get recalculatingSpoken => 'Recalculando la ruta';

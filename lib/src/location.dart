@@ -49,8 +49,9 @@ class NavigationLocation {
   /// [LocationAccess.approximate]. On iOS, with [iosPrecisePurposeKey] (a
   /// key of `NSLocationTemporaryUsageDescriptionDictionary` in Info.plist),
   /// it first asks iOS for precise location for this session.
-  static Future<LocationAccess> ensurePermission(
-      {String? iosPrecisePurposeKey}) async {
+  static Future<LocationAccess> ensurePermission({
+    String? iosPrecisePurposeKey,
+  }) async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       return LocationAccess.serviceDisabled;
     }
@@ -60,8 +61,7 @@ class NavigationLocation {
     }
     final access = switch (permission) {
       LocationPermission.always ||
-      LocationPermission.whileInUse =>
-        LocationAccess.granted,
+      LocationPermission.whileInUse => LocationAccess.granted,
       LocationPermission.deniedForever => LocationAccess.deniedForever,
       _ => LocationAccess.denied,
     };
@@ -109,8 +109,10 @@ class NavigationLocation {
     String notificationTitle = 'Navigation',
     String notificationText = 'Directions are on',
     String notificationChannelName = 'Navigation',
-    AndroidResource notificationIcon =
-        const AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+    AndroidResource notificationIcon = const AndroidResource(
+      name: 'ic_launcher',
+      defType: 'mipmap',
+    ),
   }) async* {
     // geolocator shares one position stream while it has a listener. Asking
     // for it only once listened to means that swapping streams (cancel the
@@ -136,8 +138,10 @@ class NavigationLocation {
     String notificationTitle = 'Navigation',
     String notificationText = 'Directions are on',
     String notificationChannelName = 'Navigation',
-    AndroidResource notificationIcon =
-        const AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+    AndroidResource notificationIcon = const AndroidResource(
+      name: 'ic_launcher',
+      defType: 'mipmap',
+    ),
   }) {
     if (kIsWeb) {
       return WebSettings(
@@ -184,9 +188,9 @@ class NavigationLocation {
   /// A geolocator [Position] as a [NavFix]. Unknown speed and heading
   /// (negative on iOS) become null.
   static NavFix fromPosition(Position p) => NavFix(
-        LatLng(p.latitude, p.longitude),
-        accuracyM: p.accuracy > 0 ? p.accuracy : null,
-        speedMps: p.speed >= 0 ? p.speed : null,
-        headingDeg: p.heading >= 0 ? p.heading : null,
-      );
+    LatLng(p.latitude, p.longitude),
+    accuracyM: p.accuracy > 0 ? p.accuracy : null,
+    speedMps: p.speed >= 0 ? p.speed : null,
+    headingDeg: p.heading >= 0 ? p.heading : null,
+  );
 }

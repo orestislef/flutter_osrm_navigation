@@ -43,7 +43,11 @@ void armSpeechUnlock(void Function() onUnlocked) {
   }).toJS;
   for (final type in _gestures) {
     globalContext.callMethod(
-        'addEventListener'.toJS, type.toJS, _handler, true.toJS);
+      'addEventListener'.toJS,
+      type.toJS,
+      _handler,
+      true.toJS,
+    );
   }
 }
 
@@ -54,7 +58,11 @@ void _disarm() {
   if (handler == null) return;
   for (final type in _gestures) {
     globalContext.callMethod(
-        'removeEventListener'.toJS, type.toJS, handler, true.toJS);
+      'removeEventListener'.toJS,
+      type.toJS,
+      handler,
+      true.toJS,
+    );
   }
 }
 
@@ -71,13 +79,15 @@ bool? speechHasVoice(String language) {
     final synth = globalContext['speechSynthesis'] as JSObject?;
     final voices =
         synth?.callMethod<JSArray<JSObject>>('getVoices'.toJS).toDart ??
-            const [];
+        const [];
     if (voices.isEmpty) return null;
     final prefix = language.toLowerCase();
-    return voices.any((v) => ((v['lang'] as JSString?)?.toDart ?? '')
-        .toLowerCase()
-        .replaceAll('_', '-')
-        .startsWith(prefix));
+    return voices.any(
+      (v) => ((v['lang'] as JSString?)?.toDart ?? '')
+          .toLowerCase()
+          .replaceAll('_', '-')
+          .startsWith(prefix),
+    );
   } catch (_) {
     return null;
   }

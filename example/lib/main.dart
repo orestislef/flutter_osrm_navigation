@@ -125,9 +125,9 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   Stream<NavFix> _gps() => NavigationLocation.stream(
-        notificationTitle: 'OSRM Navigation',
-        notificationText: 'Guiding you to your destination',
-      );
+    notificationTitle: 'OSRM Navigation',
+    notificationText: 'Guiding you to your destination',
+  );
 
   void _onEvent(NavigationEvent event) {
     if (!mounted) return;
@@ -184,11 +184,7 @@ class _NavigationPageState extends State<NavigationPage> {
           _nav.detachLocation();
         }
       }
-      await _nav.navigateTo(
-        to,
-        from: from,
-        via: List.of(_stops),
-      );
+      await _nav.navigateTo(to, from: from, via: List.of(_stops));
       if (simulate) _sim.start();
     } catch (e) {
       _error = e is RoutingException ? e.message : '$e';
@@ -212,11 +208,11 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   void _clear() => setState(() {
-        _from = null;
-        _to = null;
-        _stops.clear();
-        _error = null;
-      });
+    _from = null;
+    _to = null;
+    _stops.clear();
+    _error = null;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -295,11 +291,11 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   Marker _pin(LatLng p, IconData icon) => Marker(
-        point: p,
-        width: 32,
-        height: 32,
-        child: Icon(icon, color: Colors.redAccent, size: 28),
-      );
+    point: p,
+    width: 32,
+    height: 32,
+    child: Icon(icon, color: Colors.redAccent, size: 28),
+  );
 
   Widget _panel(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -331,8 +327,9 @@ class _NavigationPageState extends State<NavigationPage> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   _error!,
-                  style: text.bodySmall
-                      ?.copyWith(color: Theme.of(context).colorScheme.error),
+                  style: text.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ),
             const SizedBox(height: 10),
@@ -349,7 +346,8 @@ class _NavigationPageState extends State<NavigationPage> {
                   label: const Text('Navigate'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: _busy ||
+                  onPressed:
+                      _busy ||
                           _to == null ||
                           (_from == null && _nav.lastFix == null)
                       ? null
@@ -370,8 +368,9 @@ class _NavigationPageState extends State<NavigationPage> {
                   ButtonSegment(value: code, label: Text(code.toUpperCase())),
               ],
               selected: {_nav.strings.speechLanguage.substring(0, 2)},
-              onSelectionChanged: (v) => setState(() =>
-                  _nav.strings = NavigationStrings.forLanguage(v.first)),
+              onSelectionChanged: (v) => setState(
+                () => _nav.strings = NavigationStrings.forLanguage(v.first),
+              ),
             ),
             const SizedBox(height: 8),
             SegmentedButton<Look>(

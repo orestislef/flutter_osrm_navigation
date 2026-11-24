@@ -13,16 +13,16 @@ class FrenchNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'sharp right' => 'franchement à droite',
-        'right' => 'à droite',
-        'slight right' => 'légèrement à droite',
-        'straight' => 'tout droit',
-        'slight left' => 'légèrement à gauche',
-        'left' => 'à gauche',
-        'sharp left' => 'franchement à gauche',
-        'uturn' => 'demi-tour',
-        _ => modifier,
-      };
+    'sharp right' => 'franchement à droite',
+    'right' => 'à droite',
+    'slight right' => 'légèrement à droite',
+    'straight' => 'tout droit',
+    'slight left' => 'légèrement à gauche',
+    'left' => 'à gauche',
+    'sharp left' => 'franchement à gauche',
+    'uturn' => 'demi-tour',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'nord',
@@ -78,10 +78,10 @@ class FrenchNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Arrivée à destination',
-        ArrivalType.stop => "Arrivée à l'arrêt",
-        ArrivalType.pickup => 'Arrivée au point de prise en charge',
-      };
+    ArrivalType.destination => 'Arrivée à destination',
+    ArrivalType.stop => "Arrivée à l'arrêt",
+    ArrivalType.pickup => 'Arrivée au point de prise en charge',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -104,17 +104,17 @@ class FrenchNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'vous arrivez à destination',
-        ArrivalType.stop => "vous arrivez à l'arrêt",
-        ArrivalType.pickup => 'vous arrivez au point de prise en charge',
-      };
+    ArrivalType.destination => 'vous arrivez à destination',
+    ArrivalType.stop => "vous arrivez à l'arrêt",
+    ArrivalType.pickup => 'vous arrivez au point de prise en charge',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Vous êtes arrivé à destination',
-        ArrivalType.stop => "Vous êtes arrivé à l'arrêt",
-        ArrivalType.pickup => 'Vous êtes arrivé au point de prise en charge',
-      };
+    ArrivalType.destination => 'Vous êtes arrivé à destination',
+    ArrivalType.stop => "Vous êtes arrivé à l'arrêt",
+    ArrivalType.pickup => 'Vous êtes arrivé au point de prise en charge',
+  };
 
   @override
   String get recalculatingSpoken => "Calcul d'un nouvel itinéraire";

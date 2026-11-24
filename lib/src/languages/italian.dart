@@ -13,16 +13,16 @@ class ItalianNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'sharp right' => 'nettamente a destra',
-        'right' => 'a destra',
-        'slight right' => 'leggermente a destra',
-        'straight' => 'dritto',
-        'slight left' => 'leggermente a sinistra',
-        'left' => 'a sinistra',
-        'sharp left' => 'nettamente a sinistra',
-        'uturn' => 'inversione a U',
-        _ => modifier,
-      };
+    'sharp right' => 'nettamente a destra',
+    'right' => 'a destra',
+    'slight right' => 'leggermente a destra',
+    'straight' => 'dritto',
+    'slight left' => 'leggermente a sinistra',
+    'left' => 'a sinistra',
+    'sharp left' => 'nettamente a sinistra',
+    'uturn' => 'inversione a U',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'nord',
@@ -74,10 +74,10 @@ class ItalianNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Arrivo a destinazione',
-        ArrivalType.stop => 'Arrivo alla fermata',
-        ArrivalType.pickup => 'Arrivo al punto di ritiro',
-      };
+    ArrivalType.destination => 'Arrivo a destinazione',
+    ArrivalType.stop => 'Arrivo alla fermata',
+    ArrivalType.pickup => 'Arrivo al punto di ritiro',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -100,17 +100,17 @@ class ItalianNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'arrivi a destinazione',
-        ArrivalType.stop => 'arrivi alla fermata',
-        ArrivalType.pickup => 'arrivi al punto di ritiro',
-      };
+    ArrivalType.destination => 'arrivi a destinazione',
+    ArrivalType.stop => 'arrivi alla fermata',
+    ArrivalType.pickup => 'arrivi al punto di ritiro',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Sei arrivato a destinazione',
-        ArrivalType.stop => 'Sei arrivato alla fermata',
-        ArrivalType.pickup => 'Sei arrivato al punto di ritiro',
-      };
+    ArrivalType.destination => 'Sei arrivato a destinazione',
+    ArrivalType.stop => 'Sei arrivato alla fermata',
+    ArrivalType.pickup => 'Sei arrivato al punto di ritiro',
+  };
 
   @override
   String get recalculatingSpoken => 'Ricalcolo del percorso';

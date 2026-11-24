@@ -14,16 +14,16 @@ class BulgarianNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'sharp right' => 'рязко надясно',
-        'right' => 'надясно',
-        'slight right' => 'леко надясно',
-        'straight' => 'направо',
-        'slight left' => 'леко наляво',
-        'left' => 'наляво',
-        'sharp left' => 'рязко наляво',
-        'uturn' => 'обратно',
-        _ => modifier,
-      };
+    'sharp right' => 'рязко надясно',
+    'right' => 'надясно',
+    'slight right' => 'леко надясно',
+    'straight' => 'направо',
+    'slight left' => 'леко наляво',
+    'left' => 'наляво',
+    'sharp left' => 'рязко наляво',
+    'uturn' => 'обратно',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'север',
@@ -76,10 +76,10 @@ class BulgarianNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Пристигане в крайната точка',
-        ArrivalType.stop => 'Пристигане на спирката',
-        ArrivalType.pickup => 'Пристигане на мястото за качване',
-      };
+    ArrivalType.destination => 'Пристигане в крайната точка',
+    ArrivalType.stop => 'Пристигане на спирката',
+    ArrivalType.pickup => 'Пристигане на мястото за качване',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -102,17 +102,17 @@ class BulgarianNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'пристигате в крайната точка',
-        ArrivalType.stop => 'пристигате на спирката',
-        ArrivalType.pickup => 'пристигате на мястото за качване',
-      };
+    ArrivalType.destination => 'пристигате в крайната точка',
+    ArrivalType.stop => 'пристигате на спирката',
+    ArrivalType.pickup => 'пристигате на мястото за качване',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Пристигнахте в крайната точка',
-        ArrivalType.stop => 'Пристигнахте на спирката',
-        ArrivalType.pickup => 'Пристигнахте на мястото за качване',
-      };
+    ArrivalType.destination => 'Пристигнахте в крайната точка',
+    ArrivalType.stop => 'Пристигнахте на спирката',
+    ArrivalType.pickup => 'Пристигнахте на мястото за качване',
+  };
 
   @override
   String get recalculatingSpoken => 'Преизчисляване на маршрута';

@@ -51,7 +51,9 @@ abstract class NavigationStrings {
   /// country), for [forLanguage] and [forLocale]. Wins over a built in one,
   /// so it can also replace the wording of a built in language.
   static void register(
-      String languageCode, NavigationStrings Function() create) {
+    String languageCode,
+    NavigationStrings Function() create,
+  ) {
     _registered[_norm(languageCode)] = create;
   }
 
@@ -207,8 +209,9 @@ abstract class NavigationStrings {
 
   /// [speedMps] in the units shown, rounded to a whole number.
   int speedValue(double speedMps, DistanceUnits units) {
-    final v =
-        units == DistanceUnits.imperial ? speedMps * 2.2369363 : speedMps * 3.6;
+    final v = units == DistanceUnits.imperial
+        ? speedMps * 2.2369363
+        : speedMps * 3.6;
     return v.isFinite && v > 0 ? v.round() : 0;
   }
 
@@ -264,8 +267,10 @@ abstract class NavigationStrings {
   /// The instruction text for [step], "Turn left onto Main Street".
   ///
   /// [arrival] is what an arrival step arrives at.
-  String instruction(NavStep step,
-      {ArrivalType arrival = ArrivalType.destination}) {
+  String instruction(
+    NavStep step, {
+    ArrivalType arrival = ArrivalType.destination,
+  }) {
     final road = step.road;
     String on(String text) => road.isEmpty ? text : onStreet(text, road);
     String onto(String text) => road.isEmpty ? text : ontoStreet(text, road);
@@ -283,7 +288,8 @@ abstract class NavigationStrings {
       case 'depart':
         final b = step.bearingAfter;
         return on(
-            head(b == null ? null : cardinal(((b % 360) / 45).round() % 8)));
+          head(b == null ? null : cardinal(((b % 360) / 45).round() % 8)),
+        );
       case 'arrive':
         return arriveAt(arrival);
       case 'roundabout':
@@ -291,7 +297,8 @@ abstract class NavigationStrings {
       case 'roundabout turn':
         final exit = step.exit;
         return onto(
-            roundabout(exit != null && exit > 0 ? ordinal(exit) : null));
+          roundabout(exit != null && exit > 0 ? ordinal(exit) : null),
+        );
       case 'exit roundabout':
       case 'exit rotary':
         return onto(exitRoundabout);
@@ -386,9 +393,9 @@ class EnglishNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'uturn' => 'U-turn',
-        _ => modifier,
-      };
+    'uturn' => 'U-turn',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'north',
@@ -447,10 +454,10 @@ class EnglishNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Arrive at the destination',
-        ArrivalType.stop => 'Arrive at the stop',
-        ArrivalType.pickup => 'Arrive at the pickup',
-      };
+    ArrivalType.destination => 'Arrive at the destination',
+    ArrivalType.stop => 'Arrive at the stop',
+    ArrivalType.pickup => 'Arrive at the pickup',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -473,17 +480,17 @@ class EnglishNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'you reach the destination',
-        ArrivalType.stop => 'you reach the stop',
-        ArrivalType.pickup => 'you reach the pickup',
-      };
+    ArrivalType.destination => 'you reach the destination',
+    ArrivalType.stop => 'you reach the stop',
+    ArrivalType.pickup => 'you reach the pickup',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'You are at the destination',
-        ArrivalType.stop => 'You are at the stop',
-        ArrivalType.pickup => 'You are at the pickup',
-      };
+    ArrivalType.destination => 'You are at the destination',
+    ArrivalType.stop => 'You are at the stop',
+    ArrivalType.pickup => 'You are at the pickup',
+  };
 
   @override
   String get recalculatingSpoken => 'Recalculating the route';
@@ -554,16 +561,16 @@ class GreekNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'sharp right' => 'απότομα δεξιά',
-        'right' => 'δεξιά',
-        'slight right' => 'ελαφρώς δεξιά',
-        'straight' => 'ευθεία',
-        'slight left' => 'ελαφρώς αριστερά',
-        'left' => 'αριστερά',
-        'sharp left' => 'απότομα αριστερά',
-        'uturn' => 'αναστροφή',
-        _ => modifier,
-      };
+    'sharp right' => 'απότομα δεξιά',
+    'right' => 'δεξιά',
+    'slight right' => 'ελαφρώς δεξιά',
+    'straight' => 'ευθεία',
+    'slight left' => 'ελαφρώς αριστερά',
+    'left' => 'αριστερά',
+    'sharp left' => 'απότομα αριστερά',
+    'uturn' => 'αναστροφή',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'βόρεια',
@@ -617,10 +624,10 @@ class GreekNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Φτάνετε στον προορισμό',
-        ArrivalType.stop => 'Φτάνετε στη στάση',
-        ArrivalType.pickup => 'Φτάνετε στο σημείο παραλαβής',
-      };
+    ArrivalType.destination => 'Φτάνετε στον προορισμό',
+    ArrivalType.stop => 'Φτάνετε στη στάση',
+    ArrivalType.pickup => 'Φτάνετε στο σημείο παραλαβής',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -643,17 +650,17 @@ class GreekNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'φτάνετε στον προορισμό',
-        ArrivalType.stop => 'φτάνετε στη στάση',
-        ArrivalType.pickup => 'φτάνετε στο σημείο παραλαβής',
-      };
+    ArrivalType.destination => 'φτάνετε στον προορισμό',
+    ArrivalType.stop => 'φτάνετε στη στάση',
+    ArrivalType.pickup => 'φτάνετε στο σημείο παραλαβής',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Φτάσατε στον προορισμό',
-        ArrivalType.stop => 'Φτάσατε στη στάση',
-        ArrivalType.pickup => 'Φτάσατε στο σημείο παραλαβής',
-      };
+    ArrivalType.destination => 'Φτάσατε στον προορισμό',
+    ArrivalType.stop => 'Φτάσατε στη στάση',
+    ArrivalType.pickup => 'Φτάσατε στο σημείο παραλαβής',
+  };
 
   @override
   String get recalculatingSpoken => 'Υπολογισμός νέας διαδρομής';

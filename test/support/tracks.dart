@@ -11,8 +11,11 @@ const trackStart = LatLng(40.6300, 22.9400);
 
 /// A path of straight legs from [from]. Each part is (bearing in degrees,
 /// metres), with a point every [every] metres.
-List<LatLng> legs(LatLng from, List<(double, double)> parts,
-    {double every = 20}) {
+List<LatLng> legs(
+  LatLng from,
+  List<(double, double)> parts, {
+  double every = 20,
+}) {
   final out = <LatLng>[from];
   var here = from;
   for (final (bearing, metres) in parts) {
@@ -20,10 +23,12 @@ List<LatLng> legs(LatLng from, List<(double, double)> parts,
     final end = offsetBy(here, bearing, metres);
     for (var i = 1; i <= n; i++) {
       final t = i / n;
-      out.add(LatLng(
-        here.latitude + (end.latitude - here.latitude) * t,
-        here.longitude + (end.longitude - here.longitude) * t,
-      ));
+      out.add(
+        LatLng(
+          here.latitude + (end.latitude - here.latitude) * t,
+          here.longitude + (end.longitude - here.longitude) * t,
+        ),
+      );
     }
     here = end;
   }

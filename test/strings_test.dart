@@ -4,21 +4,22 @@ import 'package:flutter_osrm_navigation/flutter_osrm_navigation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
-NavStep s(String type,
-        {String? modifier,
-        String name = '',
-        String ref = '',
-        int? exit,
-        double? bearingAfter}) =>
-    NavStep(
-      maneuverType: type,
-      modifier: modifier,
-      location: const LatLng(0, 0),
-      streetName: name,
-      ref: ref,
-      exit: exit,
-      bearingAfter: bearingAfter,
-    );
+NavStep s(
+  String type, {
+  String? modifier,
+  String name = '',
+  String ref = '',
+  int? exit,
+  double? bearingAfter,
+}) => NavStep(
+  maneuverType: type,
+  modifier: modifier,
+  location: const LatLng(0, 0),
+  streetName: name,
+  ref: ref,
+  exit: exit,
+  bearingAfter: bearingAfter,
+);
 
 void main() {
   const en = EnglishNavigationStrings();
@@ -27,22 +28,38 @@ void main() {
   test('picks the language from a code', () {
     expect(NavigationStrings.forLanguage('el'), isA<GreekNavigationStrings>());
     expect(
-        NavigationStrings.forLanguage('el-GR'), isA<GreekNavigationStrings>());
-    expect(NavigationStrings.forLanguage('en_US'),
-        isA<EnglishNavigationStrings>());
+      NavigationStrings.forLanguage('el-GR'),
+      isA<GreekNavigationStrings>(),
+    );
+    expect(
+      NavigationStrings.forLanguage('en_US'),
+      isA<EnglishNavigationStrings>(),
+    );
     expect(NavigationStrings.forLanguage('fr'), isA<FrenchNavigationStrings>());
-    expect(NavigationStrings.forLanguage('bg-BG'),
-        isA<BulgarianNavigationStrings>());
     expect(
-        NavigationStrings.forLanguage('de_AT'), isA<GermanNavigationStrings>());
+      NavigationStrings.forLanguage('bg-BG'),
+      isA<BulgarianNavigationStrings>(),
+    );
     expect(
-        NavigationStrings.forLanguage('es'), isA<SpanishNavigationStrings>());
+      NavigationStrings.forLanguage('de_AT'),
+      isA<GermanNavigationStrings>(),
+    );
     expect(
-        NavigationStrings.forLanguage('it'), isA<ItalianNavigationStrings>());
+      NavigationStrings.forLanguage('es'),
+      isA<SpanishNavigationStrings>(),
+    );
     expect(
-        NavigationStrings.forLanguage('ja'), isA<EnglishNavigationStrings>());
-    expect(NavigationStrings.forLocale(const Locale('bg', 'BG')),
-        isA<BulgarianNavigationStrings>());
+      NavigationStrings.forLanguage('it'),
+      isA<ItalianNavigationStrings>(),
+    );
+    expect(
+      NavigationStrings.forLanguage('ja'),
+      isA<EnglishNavigationStrings>(),
+    );
+    expect(
+      NavigationStrings.forLocale(const Locale('bg', 'BG')),
+      isA<BulgarianNavigationStrings>(),
+    );
   });
 
   group('your own language', () {
@@ -56,15 +73,19 @@ void main() {
       NavigationStrings.register('ro', () => const _Romanian());
       expect(NavigationStrings.forLanguage('ro-RO'), isA<_Romanian>());
       expect(NavigationStrings.forLocale(const Locale('ro')), isA<_Romanian>());
-      expect(NavigationStrings.forLanguage('ro').turn('la stânga'),
-          'Virați la stânga');
+      expect(
+        NavigationStrings.forLanguage('ro').turn('la stânga'),
+        'Virați la stânga',
+      );
     });
 
     test('a country beats the language, and a built in can be replaced', () {
       NavigationStrings.register('pt-BR', () => const _Romanian());
       expect(NavigationStrings.forLanguage('pt_BR'), isA<_Romanian>());
-      expect(NavigationStrings.forLanguage('pt-PT'),
-          isA<EnglishNavigationStrings>());
+      expect(
+        NavigationStrings.forLanguage('pt-PT'),
+        isA<EnglishNavigationStrings>(),
+      );
       NavigationStrings.register('el', () => const _Romanian());
       expect(NavigationStrings.forLanguage('el'), isA<_Romanian>());
     });
@@ -77,8 +98,10 @@ void main() {
         expect(s.speechLanguage.toLowerCase(), startsWith(code));
         final turn = s.instruction(stepOf('turn', modifier: 'left', name: 'X'));
         expect(turn, contains('X'));
-        final said =
-            s.inDistance(s.spokenDistance(200, DistanceUnits.metric), turn);
+        final said = s.inDistance(
+          s.spokenDistance(200, DistanceUnits.metric),
+          turn,
+        );
         expect(said, contains('200'));
         expect(s.instruction(stepOf('roundabout', exit: 2)), contains('2'));
         expect(s.arrived(ArrivalType.destination), isNotEmpty);
@@ -102,14 +125,21 @@ void main() {
 
   test('Bulgarian reads right', () {
     const bg = BulgarianNavigationStrings();
-    expect(bg.instruction(stepOf('turn', modifier: 'left', name: 'ул. Витоша')),
-        'Завийте наляво по ул. Витоша');
     expect(
-        bg.inDistance(
-            bg.spokenDistance(200, DistanceUnits.metric), 'Завийте наляво'),
-        'След 200 метра завийте наляво');
-    expect(bg.instruction(stepOf('roundabout', exit: 3)),
-        'На кръговото кръстовище излезте на изход 3');
+      bg.instruction(stepOf('turn', modifier: 'left', name: 'ул. Витоша')),
+      'Завийте наляво по ул. Витоша',
+    );
+    expect(
+      bg.inDistance(
+        bg.spokenDistance(200, DistanceUnits.metric),
+        'Завийте наляво',
+      ),
+      'След 200 метра завийте наляво',
+    );
+    expect(
+      bg.instruction(stepOf('roundabout', exit: 3)),
+      'На кръговото кръстовище излезте на изход 3',
+    );
     expect(bg.shortDistance(1540, DistanceUnits.metric), '1,5 км');
     expect(bg.speedUnit(DistanceUnits.metric), 'км/ч');
     expect(bg.clockTime(DateTime(2026, 1, 1, 17, 5), use24h: false), '17:05');
@@ -117,70 +147,113 @@ void main() {
 
   group('instructions in English', () {
     test('turns, keeps and merges', () {
-      expect(en.instruction(s('turn', modifier: 'left', name: 'Main St')),
-          'Turn left onto Main St');
-      expect(en.instruction(s('turn', modifier: 'sharp right')),
-          'Turn sharp right');
-      expect(en.instruction(s('end of road', modifier: 'right', ref: 'A1')),
-          'Turn right onto A1');
-      expect(en.instruction(s('fork', modifier: 'slight left')),
-          'Keep slight left');
       expect(
-          en.instruction(s('off ramp', modifier: 'straight')), 'Keep straight');
+        en.instruction(s('turn', modifier: 'left', name: 'Main St')),
+        'Turn left onto Main St',
+      );
+      expect(
+        en.instruction(s('turn', modifier: 'sharp right')),
+        'Turn sharp right',
+      );
+      expect(
+        en.instruction(s('end of road', modifier: 'right', ref: 'A1')),
+        'Turn right onto A1',
+      );
+      expect(
+        en.instruction(s('fork', modifier: 'slight left')),
+        'Keep slight left',
+      );
+      expect(
+        en.instruction(s('off ramp', modifier: 'straight')),
+        'Keep straight',
+      );
       expect(en.instruction(s('merge')), 'Merge');
       expect(en.instruction(s('merge', modifier: 'left')), 'Merge left');
-      expect(en.instruction(s('new name', name: 'Oak Ave')),
-          'Continue on Oak Ave');
+      expect(
+        en.instruction(s('new name', name: 'Oak Ave')),
+        'Continue on Oak Ave',
+      );
       expect(en.instruction(s('continue', modifier: 'right')), 'Keep right');
     });
 
     test('a U-turn is a U-turn whatever the maneuver says', () {
-      expect(en.instruction(s('continue', modifier: 'uturn', name: 'X')),
-          'Make a U-turn onto X');
+      expect(
+        en.instruction(s('continue', modifier: 'uturn', name: 'X')),
+        'Make a U-turn onto X',
+      );
       expect(en.instruction(s('turn', modifier: 'uturn')), 'Make a U-turn');
     });
 
     test('roundabouts with and without the exit', () {
-      expect(en.instruction(s('roundabout', exit: 2, name: 'Elm')),
-          'Enter the roundabout, take the 2nd exit onto Elm');
+      expect(
+        en.instruction(s('roundabout', exit: 2, name: 'Elm')),
+        'Enter the roundabout, take the 2nd exit onto Elm',
+      );
       expect(en.instruction(s('rotary')), 'Enter the roundabout');
-      expect(en.instruction(s('exit roundabout', name: 'Elm')),
-          'Exit the roundabout onto Elm');
-      expect([1, 2, 3, 4, 11, 12, 13, 21, 22].map(en.ordinal),
-          ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd']);
+      expect(
+        en.instruction(s('exit roundabout', name: 'Elm')),
+        'Exit the roundabout onto Elm',
+      );
+      expect([1, 2, 3, 4, 11, 12, 13, 21, 22].map(en.ordinal), [
+        '1st',
+        '2nd',
+        '3rd',
+        '4th',
+        '11th',
+        '12th',
+        '13th',
+        '21st',
+        '22nd',
+      ]);
     });
 
     test('the departure says the compass direction', () {
-      expect(en.instruction(s('depart', bearingAfter: 92, name: 'Elm')),
-          'Head east on Elm');
+      expect(
+        en.instruction(s('depart', bearingAfter: 92, name: 'Elm')),
+        'Head east on Elm',
+      );
       expect(en.instruction(s('depart', bearingAfter: 350)), 'Head north');
       expect(en.instruction(s('depart')), 'Head');
     });
 
     test('arrival by type', () {
       expect(en.instruction(s('arrive')), 'Arrive at the destination');
-      expect(en.instruction(s('arrive'), arrival: ArrivalType.stop),
-          'Arrive at the stop');
+      expect(
+        en.instruction(s('arrive'), arrival: ArrivalType.stop),
+        'Arrive at the stop',
+      );
     });
 
     test('in distance and then read as one sentence', () {
-      expect(en.inDistance('200 meters', 'Turn left onto Elm'),
-          'In 200 meters, turn left onto Elm');
-      expect(en.then('Turn left', 'Turn right onto Elm'),
-          'Turn left, then turn right onto Elm');
+      expect(
+        en.inDistance('200 meters', 'Turn left onto Elm'),
+        'In 200 meters, turn left onto Elm',
+      );
+      expect(
+        en.then('Turn left', 'Turn right onto Elm'),
+        'Turn left, then turn right onto Elm',
+      );
     });
   });
 
   group('instructions in Greek', () {
     test('turns and roundabouts', () {
-      expect(el.instruction(s('turn', modifier: 'left', name: 'Ερμού')),
-          'Στρίψτε αριστερά στην Ερμού');
-      expect(el.instruction(s('roundabout', exit: 3)),
-          'Μπείτε στον κυκλικό κόμβο και βγείτε στην 3η έξοδο');
       expect(
-          el.instruction(s('continue', modifier: 'uturn')), 'Κάντε αναστροφή');
-      expect(el.inDistance('200 μέτρα', 'Στρίψτε δεξιά'),
-          'Σε 200 μέτρα, στρίψτε δεξιά');
+        el.instruction(s('turn', modifier: 'left', name: 'Ερμού')),
+        'Στρίψτε αριστερά στην Ερμού',
+      );
+      expect(
+        el.instruction(s('roundabout', exit: 3)),
+        'Μπείτε στον κυκλικό κόμβο και βγείτε στην 3η έξοδο',
+      );
+      expect(
+        el.instruction(s('continue', modifier: 'uturn')),
+        'Κάντε αναστροφή',
+      );
+      expect(
+        el.inDistance('200 μέτρα', 'Στρίψτε δεξιά'),
+        'Σε 200 μέτρα, στρίψτε δεξιά',
+      );
     });
   });
 
@@ -226,7 +299,9 @@ void main() {
       expect(en.clockTime(t, use24h: false), '5:04 PM');
       expect(en.clockTime(t, use24h: true), '17:04');
       expect(
-          en.clockTime(DateTime(2026, 1, 1, 0, 30), use24h: false), '12:30 AM');
+        en.clockTime(DateTime(2026, 1, 1, 0, 30), use24h: false),
+        '12:30 AM',
+      );
       expect(el.clockTime(t, use24h: false), '17:04');
     });
 

@@ -110,15 +110,11 @@ class TtsNavigationVoice implements NavigationVoice, DiagnosableVoice {
       if (platform == TargetPlatform.iOS) {
         // Over music, with the ringer off, and on in the background.
         await tts.setSharedInstance(true);
-        await tts.setIosAudioCategory(
-          IosTextToSpeechAudioCategory.playback,
-          [
-            if (duckOthers) IosTextToSpeechAudioCategoryOptions.duckOthers,
-            IosTextToSpeechAudioCategoryOptions
-                .interruptSpokenAudioAndMixWithOthers,
-          ],
-          IosTextToSpeechAudioMode.voicePrompt,
-        );
+        await tts.setIosAudioCategory(IosTextToSpeechAudioCategory.playback, [
+          if (duckOthers) IosTextToSpeechAudioCategoryOptions.duckOthers,
+          IosTextToSpeechAudioCategoryOptions
+              .interruptSpokenAudioAndMixWithOthers,
+        ], IosTextToSpeechAudioMode.voicePrompt);
       } else if (platform == TargetPlatform.android) {
         await tts.setAudioAttributesForNavigation();
       }

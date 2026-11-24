@@ -179,8 +179,10 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
 
   /// The style for [context]: [local] over the theme's extension over the
   /// color scheme.
-  static ResolvedNavigationStyle resolve(BuildContext context,
-      [NavigationStyle? local]) {
+  static ResolvedNavigationStyle resolve(
+    BuildContext context, [
+    NavigationStyle? local,
+  ]) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final t = theme.extension<NavigationStyle>();
@@ -206,8 +208,9 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
           .merge(s.distanceTextStyle),
       instructionTextStyle: (theme.textTheme.titleSmall ?? const TextStyle())
           .merge(s.instructionTextStyle),
-      footerTextStyle: (theme.textTheme.bodyMedium ?? const TextStyle())
-          .merge(s.footerTextStyle),
+      footerTextStyle: (theme.textTheme.bodyMedium ?? const TextStyle()).merge(
+        s.footerTextStyle,
+      ),
       routeColor: route,
       routeBorderColor: s.routeBorderColor ?? cs.surface,
       routeWidth: s.routeWidth ?? 8,
@@ -251,12 +254,14 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       footerMutedColor: other.footerMutedColor,
       bannerBorderRadius: other.bannerBorderRadius,
       bannerElevation: other.bannerElevation,
-      distanceTextStyle: distanceTextStyle?.merge(other.distanceTextStyle) ??
+      distanceTextStyle:
+          distanceTextStyle?.merge(other.distanceTextStyle) ??
           other.distanceTextStyle,
       instructionTextStyle:
           instructionTextStyle?.merge(other.instructionTextStyle) ??
-              other.instructionTextStyle,
-      footerTextStyle: footerTextStyle?.merge(other.footerTextStyle) ??
+          other.instructionTextStyle,
+      footerTextStyle:
+          footerTextStyle?.merge(other.footerTextStyle) ??
           other.footerTextStyle,
       routeColor: other.routeColor,
       routeBorderColor: other.routeBorderColor,
@@ -383,15 +388,27 @@ class NavigationStyle extends ThemeExtension<NavigationStyle> {
       onFooterColor: c(onFooterColor, other.onFooterColor),
       footerAccentColor: c(footerAccentColor, other.footerAccentColor),
       footerMutedColor: c(footerMutedColor, other.footerMutedColor),
-      bannerBorderRadius:
-          BorderRadius.lerp(bannerBorderRadius, other.bannerBorderRadius, t),
+      bannerBorderRadius: BorderRadius.lerp(
+        bannerBorderRadius,
+        other.bannerBorderRadius,
+        t,
+      ),
       bannerElevation: d(bannerElevation, other.bannerElevation),
-      distanceTextStyle:
-          TextStyle.lerp(distanceTextStyle, other.distanceTextStyle, t),
-      instructionTextStyle:
-          TextStyle.lerp(instructionTextStyle, other.instructionTextStyle, t),
-      footerTextStyle:
-          TextStyle.lerp(footerTextStyle, other.footerTextStyle, t),
+      distanceTextStyle: TextStyle.lerp(
+        distanceTextStyle,
+        other.distanceTextStyle,
+        t,
+      ),
+      instructionTextStyle: TextStyle.lerp(
+        instructionTextStyle,
+        other.instructionTextStyle,
+        t,
+      ),
+      footerTextStyle: TextStyle.lerp(
+        footerTextStyle,
+        other.footerTextStyle,
+        t,
+      ),
       routeColor: c(routeColor, other.routeColor),
       routeBorderColor: c(routeBorderColor, other.routeBorderColor),
       routeWidth: d(routeWidth, other.routeWidth),

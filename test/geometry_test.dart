@@ -6,38 +6,50 @@ import 'support/tracks.dart';
 
 void main() {
   group('RouteLine', () {
-    test('matches a position to the nearest point, measured along the line',
-        () {
-      final line = RouteLine(testPath());
-      expect(line.lengthM, closeTo(1500, 3));
-      final m = line.match(offsetBy(offsetBy(trackStart, 90, 250), 0, 12))!;
-      expect(m.distanceM, closeTo(12, 0.5));
-      expect(m.alongM, closeTo(250, 1));
-      expect(m.bearing, closeTo(90, 1));
-    });
+    test(
+      'matches a position to the nearest point, measured along the line',
+      () {
+        final line = RouteLine(testPath());
+        expect(line.lengthM, closeTo(1500, 3));
+        final m = line.match(offsetBy(offsetBy(trackStart, 90, 250), 0, 12))!;
+        expect(m.distanceM, closeTo(12, 0.5));
+        expect(m.alongM, closeTo(250, 1));
+        expect(m.bearing, closeTo(90, 1));
+      },
+    );
 
-    test('remainingFrom starts at the exact point and drops what is behind',
-        () {
-      final line = RouteLine(testPath());
-      final rest = line.remainingFrom(250);
-      expect(metresBetween(rest.first, offsetBy(trackStart, 90, 250)),
-          lessThan(1));
-      expect(RouteLine(rest).lengthM, closeTo(1250, 3));
-      final behind = line.traveledTo(250);
-      expect(RouteLine(behind).lengthM, closeTo(250, 1));
-      expect(metresBetween(behind.last, rest.first), lessThan(0.01));
-    });
+    test(
+      'remainingFrom starts at the exact point and drops what is behind',
+      () {
+        final line = RouteLine(testPath());
+        final rest = line.remainingFrom(250);
+        expect(
+          metresBetween(rest.first, offsetBy(trackStart, 90, 250)),
+          lessThan(1),
+        );
+        expect(RouteLine(rest).lengthM, closeTo(1250, 3));
+        final behind = line.traveledTo(250);
+        expect(RouteLine(behind).lengthM, closeTo(250, 1));
+        expect(metresBetween(behind.last, rest.first), lessThan(0.01));
+      },
+    );
 
-    test('the direction of travel picks the pass when a street is used twice',
-        () {
-      // 300 m east, then back 300 m west on the same street.
-      final line = RouteLine(legs(trackStart, [(90, 300), (270, 300)]));
-      final p = offsetBy(trackStart, 90, 100);
-      expect(line.match(p, headingDeg: 90, againstPenaltyM: 30)!.alongM,
-          closeTo(100, 1));
-      expect(line.match(p, headingDeg: 270, againstPenaltyM: 30)!.alongM,
-          closeTo(500, 1));
-    });
+    test(
+      'the direction of travel picks the pass when a street is used twice',
+      () {
+        // 300 m east, then back 300 m west on the same street.
+        final line = RouteLine(legs(trackStart, [(90, 300), (270, 300)]));
+        final p = offsetBy(trackStart, 90, 100);
+        expect(
+          line.match(p, headingDeg: 90, againstPenaltyM: 30)!.alongM,
+          closeTo(100, 1),
+        );
+        expect(
+          line.match(p, headingDeg: 270, againstPenaltyM: 30)!.alongM,
+          closeTo(500, 1),
+        );
+      },
+    );
 
     test('a window along the line limits the search', () {
       final line = RouteLine(legs(trackStart, [(90, 300), (270, 300)]));

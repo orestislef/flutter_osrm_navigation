@@ -31,11 +31,13 @@ class NavFix {
   final int? atMs;
 
   /// A copy stamped at [atMs].
-  NavFix at(int atMs) => NavFix(position,
-      accuracyM: accuracyM,
-      speedMps: speedMps,
-      headingDeg: headingDeg,
-      atMs: atMs);
+  NavFix at(int atMs) => NavFix(
+    position,
+    accuracyM: accuracyM,
+    speedMps: speedMps,
+    headingDeg: headingDeg,
+    atMs: atMs,
+  );
 }
 
 /// What one fix says about the user and the route.
@@ -155,7 +157,11 @@ class OffRouteDetector {
   /// Reads [fix] (stamped, [NavFix.atMs] set) against the route: [match] is
   /// its nearest point on [line], [destination] where the route ends.
   FixVerdict judge(
-      NavFix fix, RouteMatch match, RouteLine line, LatLng destination) {
+    NavFix fix,
+    RouteMatch match,
+    RouteLine line,
+    LatLng destination,
+  ) {
     final atMs = fix.atMs!;
     final accuracy = fix.accuracyM ?? 0;
     if (accuracy > settings.badFixMeters) return FixVerdict.bad;

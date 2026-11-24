@@ -78,8 +78,10 @@ void main() {
         }),
       );
       final route = await router.route(const RouteRequest(points: [a, b]));
-      expect(asked.single.path,
-          '/route/v1/driving/22.940000,40.630000;22.950000,40.635000');
+      expect(
+        asked.single.path,
+        '/route/v1/driving/22.940000,40.630000;22.950000,40.635000',
+      );
       expect(asked.single.queryParameters['geometries'], 'polyline6');
       expect(asked.single.queryParameters['steps'], 'true');
       expect(asked.single.queryParameters['overview'], 'full');
@@ -97,51 +99,69 @@ void main() {
           return http.Response(jsonEncode(osrmAnswer()), 200);
         }),
       );
-      await router.route(const RouteRequest(
-          points: [a, b, a], headingDeg: 271.6, headingToleranceDeg: 30));
+      await router.route(
+        const RouteRequest(
+          points: [a, b, a],
+          headingDeg: 271.6,
+          headingToleranceDeg: 30,
+        ),
+      );
       expect(asked.single.queryParameters['bearings'], '272,30;;');
     });
 
-    test('tries again without the heading when no road runs that way',
-        () async {
-      final asked = <Uri>[];
-      final router = OsrmRouter(
-        client: MockClient((req) async {
-          asked.add(req.url);
-          if (req.url.queryParameters.containsKey('bearings')) {
-            return http.Response(
-                jsonEncode({'code': 'NoSegment', 'message': 'nope'}), 400);
-          }
-          return http.Response(jsonEncode(osrmAnswer()), 200);
-        }),
-      );
-      final route = await router
-          .route(const RouteRequest(points: [a, b], headingDeg: 90));
-      expect(asked, hasLength(2));
-      expect(route.usable, isTrue);
-    });
+    test(
+      'tries again without the heading when no road runs that way',
+      () async {
+        final asked = <Uri>[];
+        final router = OsrmRouter(
+          client: MockClient((req) async {
+            asked.add(req.url);
+            if (req.url.queryParameters.containsKey('bearings')) {
+              return http.Response(
+                jsonEncode({'code': 'NoSegment', 'message': 'nope'}),
+                400,
+              );
+            }
+            return http.Response(jsonEncode(osrmAnswer()), 200);
+          }),
+        );
+        final route = await router.route(
+          const RouteRequest(points: [a, b], headingDeg: 90),
+        );
+        expect(asked, hasLength(2));
+        expect(route.usable, isTrue);
+      },
+    );
 
     test('no route is a RoutingException with the code', () async {
       final router = OsrmRouter(
-        client: MockClient((req) async => http.Response(
+        client: MockClient(
+          (req) async => http.Response(
             jsonEncode({'code': 'NoRoute', 'message': 'Impossible route'}),
-            400)),
+            400,
+          ),
+        ),
       );
       expect(
         () => router.route(const RouteRequest(points: [a, b])),
-        throwsA(isA<RoutingException>()
-            .having((e) => e.code, 'code', 'NoRoute')
-            .having((e) => e.message, 'message', 'Impossible route')),
+        throwsA(
+          isA<RoutingException>()
+              .having((e) => e.code, 'code', 'NoRoute')
+              .having((e) => e.message, 'message', 'Impossible route'),
+        ),
       );
     });
 
     test('a page that is not JSON is a RoutingException', () async {
       final router = OsrmRouter(
         client: MockClient(
-            (req) async => http.Response('<html>bad gateway</html>', 502)),
+          (req) async => http.Response('<html>bad gateway</html>', 502),
+        ),
       );
-      expect(() => router.route(const RouteRequest(points: [a, b])),
-          throwsA(isA<RoutingException>()));
+      expect(
+        () => router.route(const RouteRequest(points: [a, b])),
+        throwsA(isA<RoutingException>()),
+      );
     });
 
     test('eta asks for no line and reads the duration', () async {
@@ -150,13 +170,14 @@ void main() {
         client: MockClient((req) async {
           asked.add(req.url);
           return http.Response(
-              jsonEncode({
-                'code': 'Ok',
-                'routes': [
-                  {'duration': 321.5, 'distance': 2000},
-                ],
-              }),
-              200);
+            jsonEncode({
+              'code': 'Ok',
+              'routes': [
+                {'duration': 321.5, 'distance': 2000},
+              ],
+            }),
+            200,
+          );
         }),
       );
       expect(router.supportsEta, isTrue);
@@ -180,8 +201,9 @@ void main() {
           return http.Response(jsonEncode(osrmAnswer()), 200);
         }),
       );
-      final route = await router
-          .route(const RouteRequest(points: [a, b], headingDeg: 359.7));
+      final route = await router.route(
+        const RouteRequest(points: [a, b], headingDeg: 359.7),
+      );
       final body = bodies.single;
       expect(body['format'], 'osrm');
       expect(body['shape_format'], 'polyline6');
@@ -196,20 +218,28 @@ void main() {
 
     test('an error answer is a RoutingException', () async {
       final router = ValhallaRouter(
-        client: MockClient((req) async => http.Response(
+        client: MockClient(
+          (req) async => http.Response(
             jsonEncode({
               'error_code': 442,
               'error': 'No path could be found for input',
               'status_code': 400,
             }),
-            400)),
+            400,
+          ),
+        ),
       );
       expect(
         () => router.route(const RouteRequest(points: [a, b])),
-        throwsA(isA<RoutingException>()
-            .having((e) => e.code, 'code', '442')
-            .having((e) => e.message, 'message',
-                'No path could be found for input')),
+        throwsA(
+          isA<RoutingException>()
+              .having((e) => e.code, 'code', '442')
+              .having(
+                (e) => e.message,
+                'message',
+                'No path could be found for input',
+              ),
+        ),
       );
     });
 
@@ -220,12 +250,13 @@ void main() {
           expect(body['directions_options']['directions_type'], 'none');
           expect(body.containsKey('format'), isFalse);
           return http.Response(
-              jsonEncode({
-                'trip': {
-                  'summary': {'time': 412.0, 'length': 3.2},
-                },
-              }),
-              200);
+            jsonEncode({
+              'trip': {
+                'summary': {'time': 412.0, 'length': 3.2},
+              },
+            }),
+            200,
+          );
         }),
       );
       expect(await router.eta(const RouteRequest(points: [a, b])), 412.0);
@@ -233,39 +264,51 @@ void main() {
   });
 
   group('rate limits and server errors', () {
-    test('a 429 is reported as such, with its Retry-After, asked once',
-        () async {
-      var asked = 0;
-      final router = OsrmRouter(
-        client: MockClient((req) async {
-          asked++;
-          return http.Response(
-              jsonEncode({'message': 'Too Many Requests'}), 429,
-              headers: {'retry-after': '30'});
-        }),
-      );
-      await expectLater(
-        router.route(const RouteRequest(points: [a, b], headingDeg: 90)),
-        throwsA(isA<RoutingException>()
-            .having((e) => e.isRateLimited, 'isRateLimited', isTrue)
-            .having((e) => e.statusCode, 'statusCode', 429)
-            .having(
-                (e) => e.retryAfter, 'retryAfter', const Duration(seconds: 30))
-            .having((e) => e.message, 'message', 'Too Many Requests')),
-      );
-      expect(asked, 1, reason: 'no second try without the heading');
-    });
+    test(
+      'a 429 is reported as such, with its Retry-After, asked once',
+      () async {
+        var asked = 0;
+        final router = OsrmRouter(
+          client: MockClient((req) async {
+            asked++;
+            return http.Response(
+              jsonEncode({'message': 'Too Many Requests'}),
+              429,
+              headers: {'retry-after': '30'},
+            );
+          }),
+        );
+        await expectLater(
+          router.route(const RouteRequest(points: [a, b], headingDeg: 90)),
+          throwsA(
+            isA<RoutingException>()
+                .having((e) => e.isRateLimited, 'isRateLimited', isTrue)
+                .having((e) => e.statusCode, 'statusCode', 429)
+                .having(
+                  (e) => e.retryAfter,
+                  'retryAfter',
+                  const Duration(seconds: 30),
+                )
+                .having((e) => e.message, 'message', 'Too Many Requests'),
+          ),
+        );
+        expect(asked, 1, reason: 'no second try without the heading');
+      },
+    );
 
     test('a 429 page that is not JSON is still a rate limit', () async {
       final router = ValhallaRouter(
         client: MockClient(
-            (req) async => http.Response('<html>slow down</html>', 429)),
+          (req) async => http.Response('<html>slow down</html>', 429),
+        ),
       );
       await expectLater(
         router.route(const RouteRequest(points: [a, b])),
-        throwsA(isA<RoutingException>()
-            .having((e) => e.isRateLimited, 'isRateLimited', isTrue)
-            .having((e) => e.retryAfter, 'retryAfter', isNull)),
+        throwsA(
+          isA<RoutingException>()
+              .having((e) => e.isRateLimited, 'isRateLimited', isTrue)
+              .having((e) => e.retryAfter, 'retryAfter', isNull),
+        ),
       );
     });
 
@@ -279,50 +322,62 @@ void main() {
       );
       await expectLater(
         router.route(const RouteRequest(points: [a, b], headingDeg: 10)),
-        throwsA(isA<RoutingException>()
-            .having((e) => e.isServerError, 'isServerError', isTrue)),
+        throwsA(
+          isA<RoutingException>().having(
+            (e) => e.isServerError,
+            'isServerError',
+            isTrue,
+          ),
+        ),
       );
       expect(asked, 1);
     });
 
     test('no route keeps its HTTP status', () async {
       final router = OsrmRouter(
-        client: MockClient((req) async => http.Response(
+        client: MockClient(
+          (req) async => http.Response(
             jsonEncode({'code': 'NoRoute', 'message': 'Impossible route'}),
-            400)),
+            400,
+          ),
+        ),
       );
       await expectLater(
         router.route(const RouteRequest(points: [a, b])),
-        throwsA(isA<RoutingException>()
-            .having((e) => e.statusCode, 'statusCode', 400)
-            .having((e) => e.isRateLimited, 'isRateLimited', isFalse)),
+        throwsA(
+          isA<RoutingException>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.isRateLimited, 'isRateLimited', isFalse),
+        ),
       );
     });
   });
 
   group('fallback servers', () {
-    test('a server that fails hands over, and the next requests stay there',
-        () async {
-      final hosts = <String>[];
-      final router = OsrmRouter(
-        baseUrl: 'https://main.example.com',
-        fallbackUrls: ['https://backup.example.com/'],
-        client: MockClient((req) async {
-          hosts.add(req.url.host);
-          if (req.url.host == 'main.example.com') {
-            return http.Response('bad gateway', 502);
-          }
-          return http.Response(jsonEncode(osrmAnswer()), 200);
-        }),
-      );
-      final route = await router.route(const RouteRequest(points: [a, b]));
-      expect(route.usable, isTrue);
-      expect(hosts, ['main.example.com', 'backup.example.com']);
-      expect(router.currentUrl, 'https://backup.example.com');
-      await router.route(const RouteRequest(points: [a, b]));
-      expect(hosts.last, 'backup.example.com');
-      expect(hosts, hasLength(3), reason: 'the dead one is not asked again');
-    });
+    test(
+      'a server that fails hands over, and the next requests stay there',
+      () async {
+        final hosts = <String>[];
+        final router = OsrmRouter(
+          baseUrl: 'https://main.example.com',
+          fallbackUrls: ['https://backup.example.com/'],
+          client: MockClient((req) async {
+            hosts.add(req.url.host);
+            if (req.url.host == 'main.example.com') {
+              return http.Response('bad gateway', 502);
+            }
+            return http.Response(jsonEncode(osrmAnswer()), 200);
+          }),
+        );
+        final route = await router.route(const RouteRequest(points: [a, b]));
+        expect(route.usable, isTrue);
+        expect(hosts, ['main.example.com', 'backup.example.com']);
+        expect(router.currentUrl, 'https://backup.example.com');
+        await router.route(const RouteRequest(points: [a, b]));
+        expect(hosts.last, 'backup.example.com');
+        expect(hosts, hasLength(3), reason: 'the dead one is not asked again');
+      },
+    );
 
     test('back to the main server after retryMainAfter', () async {
       final hosts = <String>[];
@@ -350,108 +405,146 @@ void main() {
       expect(router.currentUrl, 'https://main.example.com');
     });
 
-    test('"no route" is not asked elsewhere, all down is the last error',
-        () async {
-      final hosts = <String>[];
-      final noRoute = OsrmRouter(
-        baseUrl: 'https://main.example.com',
-        fallbackUrls: ['https://backup.example.com'],
-        client: MockClient((req) async {
-          hosts.add(req.url.host);
-          return http.Response(
+    test(
+      '"no route" is not asked elsewhere, all down is the last error',
+      () async {
+        final hosts = <String>[];
+        final noRoute = OsrmRouter(
+          baseUrl: 'https://main.example.com',
+          fallbackUrls: ['https://backup.example.com'],
+          client: MockClient((req) async {
+            hosts.add(req.url.host);
+            return http.Response(
               jsonEncode({'code': 'NoRoute', 'message': 'Impossible route'}),
-              400);
-        }),
-      );
-      await expectLater(noRoute.route(const RouteRequest(points: [a, b])),
-          throwsA(isA<RoutingException>()));
-      expect(hosts, ['main.example.com']);
+              400,
+            );
+          }),
+        );
+        await expectLater(
+          noRoute.route(const RouteRequest(points: [a, b])),
+          throwsA(isA<RoutingException>()),
+        );
+        expect(hosts, ['main.example.com']);
 
-      final down = OsrmRouter(
-        baseUrl: 'https://main.example.com',
-        fallbackUrls: ['https://backup.example.com'],
-        client: MockClient((req) async => http.Response('', 503)),
-      );
-      await expectLater(
+        final down = OsrmRouter(
+          baseUrl: 'https://main.example.com',
+          fallbackUrls: ['https://backup.example.com'],
+          client: MockClient((req) async => http.Response('', 503)),
+        );
+        await expectLater(
           down.route(const RouteRequest(points: [a, b])),
-          throwsA(isA<RoutingException>()
-              .having((e) => e.isServerError, 'isServerError', isTrue)));
-    });
+          throwsA(
+            isA<RoutingException>().having(
+              (e) => e.isServerError,
+              'isServerError',
+              isTrue,
+            ),
+          ),
+        );
+      },
+    );
 
-    test('FallbackRouter mixes kinds and keeps going past a dead one',
-        () async {
-      final calls = <String>[];
-      final router = FallbackRouter([
-        CallbackRouter(route: (r) async {
-          calls.add('valhalla');
-          throw const RoutingException('down', statusCode: 503);
-        }),
-        CallbackRouter(
-          route: (r) async {
-            calls.add('osrm');
-            return NavRoute.fromOsrmJson(osrmAnswer());
-          },
-          eta: (r) async => 99,
-        ),
-      ]);
-      expect((await router.route(const RouteRequest(points: [a, b]))).usable,
-          isTrue);
-      expect(calls, ['valhalla', 'osrm']);
-      expect(router.supportsEta, isTrue);
-      expect(await router.eta(const RouteRequest(points: [a, b])), 99);
+    test(
+      'FallbackRouter mixes kinds and keeps going past a dead one',
+      () async {
+        final calls = <String>[];
+        final router = FallbackRouter([
+          CallbackRouter(
+            route: (r) async {
+              calls.add('valhalla');
+              throw const RoutingException('down', statusCode: 503);
+            },
+          ),
+          CallbackRouter(
+            route: (r) async {
+              calls.add('osrm');
+              return NavRoute.fromOsrmJson(osrmAnswer());
+            },
+            eta: (r) async => 99,
+          ),
+        ]);
+        expect(
+          (await router.route(const RouteRequest(points: [a, b]))).usable,
+          isTrue,
+        );
+        expect(calls, ['valhalla', 'osrm']);
+        expect(router.supportsEta, isTrue);
+        expect(await router.eta(const RouteRequest(points: [a, b])), 99);
 
-      final strict = FallbackRouter([
-        CallbackRouter(
-            route: (r) async => throw const RoutingException('no route',
-                statusCode: 400, code: 'NoRoute')),
-        CallbackRouter(route: (r) async => NavRoute.fromOsrmJson(osrmAnswer())),
-      ]);
-      await expectLater(strict.route(const RouteRequest(points: [a, b])),
-          throwsA(isA<RoutingException>()));
-      final loose = FallbackRouter([
-        CallbackRouter(
-            route: (r) async => throw const RoutingException('no route',
-                statusCode: 400, code: 'NoRoute')),
-        CallbackRouter(route: (r) async => NavRoute.fromOsrmJson(osrmAnswer())),
-      ], onNoRoute: true);
-      expect((await loose.route(const RouteRequest(points: [a, b]))).usable,
-          isTrue);
-    });
+        final strict = FallbackRouter([
+          CallbackRouter(
+            route: (r) async => throw const RoutingException(
+              'no route',
+              statusCode: 400,
+              code: 'NoRoute',
+            ),
+          ),
+          CallbackRouter(
+            route: (r) async => NavRoute.fromOsrmJson(osrmAnswer()),
+          ),
+        ]);
+        await expectLater(
+          strict.route(const RouteRequest(points: [a, b])),
+          throwsA(isA<RoutingException>()),
+        );
+        final loose = FallbackRouter([
+          CallbackRouter(
+            route: (r) async => throw const RoutingException(
+              'no route',
+              statusCode: 400,
+              code: 'NoRoute',
+            ),
+          ),
+          CallbackRouter(
+            route: (r) async => NavRoute.fromOsrmJson(osrmAnswer()),
+          ),
+        ], onNoRoute: true);
+        expect(
+          (await loose.route(const RouteRequest(points: [a, b]))).usable,
+          isTrue,
+        );
+      },
+    );
   });
 
   group('speed limits from OSRM', () {
     test('off by default, nothing extra asked', () async {
       Uri? url;
-      final router = OsrmRouter(client: MockClient((req) async {
-        url = req.url;
-        return http.Response(jsonEncode(osrmAnswer()), 200);
-      }));
+      final router = OsrmRouter(
+        client: MockClient((req) async {
+          url = req.url;
+          return http.Response(jsonEncode(osrmAnswer()), 200);
+        }),
+      );
       await router.route(const RouteRequest(points: [a, b]));
       expect(url!.queryParameters.containsKey('annotations'), isFalse);
     });
 
-    test('asked for when on, and dropped for good when the server says no',
-        () async {
-      final asked = <Uri>[];
-      final router = OsrmRouter(
-        speedLimits: true,
-        client: MockClient((req) async {
-          asked.add(req.url);
-          if (req.url.queryParameters['annotations'] == 'maxspeed') {
-            return http.Response(
+    test(
+      'asked for when on, and dropped for good when the server says no',
+      () async {
+        final asked = <Uri>[];
+        final router = OsrmRouter(
+          speedLimits: true,
+          client: MockClient((req) async {
+            asked.add(req.url);
+            if (req.url.queryParameters['annotations'] == 'maxspeed') {
+              return http.Response(
                 jsonEncode({'code': 'InvalidQuery', 'message': 'malformed'}),
-                400);
-          }
-          return http.Response(jsonEncode(osrmAnswer()), 200);
-        }),
-      );
-      final route = await router.route(const RouteRequest(points: [a, b]));
-      expect(route.usable, isTrue);
-      expect(asked, hasLength(2));
-      await router.route(const RouteRequest(points: [a, b]));
-      expect(asked, hasLength(3), reason: 'not asked for again');
-      expect(asked.last.queryParameters.containsKey('annotations'), isFalse);
-    });
+                400,
+              );
+            }
+            return http.Response(jsonEncode(osrmAnswer()), 200);
+          }),
+        );
+        final route = await router.route(const RouteRequest(points: [a, b]));
+        expect(route.usable, isTrue);
+        expect(asked, hasLength(2));
+        await router.route(const RouteRequest(points: [a, b]));
+        expect(asked, hasLength(3), reason: 'not asked for again');
+        expect(asked.last.queryParameters.containsKey('annotations'), isFalse);
+      },
+    );
   });
 
   group('headers and keys', () {
@@ -494,10 +587,12 @@ void main() {
 
   test('CallbackRouter hands the request to your code', () async {
     RouteRequest? seen;
-    final router = CallbackRouter(route: (r) async {
-      seen = r;
-      return NavRoute.fromOsrmJson(osrmAnswer());
-    });
+    final router = CallbackRouter(
+      route: (r) async {
+        seen = r;
+        return NavRoute.fromOsrmJson(osrmAnswer());
+      },
+    );
     final route = await router.route(const RouteRequest(points: [a, b]));
     expect(seen!.points, [a, b]);
     expect(route.usable, isTrue);

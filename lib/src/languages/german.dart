@@ -13,16 +13,16 @@ class GermanNavigationStrings extends NavigationStrings {
 
   @override
   String direction(String modifier) => switch (modifier) {
-        'sharp right' => 'scharf rechts',
-        'right' => 'rechts',
-        'slight right' => 'leicht rechts',
-        'straight' => 'geradeaus',
-        'slight left' => 'leicht links',
-        'left' => 'links',
-        'sharp left' => 'scharf links',
-        'uturn' => 'wenden',
-        _ => modifier,
-      };
+    'sharp right' => 'scharf rechts',
+    'right' => 'rechts',
+    'slight right' => 'leicht rechts',
+    'straight' => 'geradeaus',
+    'slight left' => 'leicht links',
+    'left' => 'links',
+    'sharp left' => 'scharf links',
+    'uturn' => 'wenden',
+    _ => modifier,
+  };
 
   static const _cardinals = [
     'Norden',
@@ -77,10 +77,10 @@ class GermanNavigationStrings extends NavigationStrings {
 
   @override
   String arriveAt(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Ziel erreichen',
-        ArrivalType.stop => 'Zwischenstopp erreichen',
-        ArrivalType.pickup => 'Abholort erreichen',
-      };
+    ArrivalType.destination => 'Ziel erreichen',
+    ArrivalType.stop => 'Zwischenstopp erreichen',
+    ArrivalType.pickup => 'Abholort erreichen',
+  };
 
   @override
   String onStreet(String instruction, String street) =>
@@ -103,17 +103,17 @@ class GermanNavigationStrings extends NavigationStrings {
 
   @override
   String arriving(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'erreichen Sie Ihr Ziel',
-        ArrivalType.stop => 'erreichen Sie den Zwischenstopp',
-        ArrivalType.pickup => 'erreichen Sie den Abholort',
-      };
+    ArrivalType.destination => 'erreichen Sie Ihr Ziel',
+    ArrivalType.stop => 'erreichen Sie den Zwischenstopp',
+    ArrivalType.pickup => 'erreichen Sie den Abholort',
+  };
 
   @override
   String arrived(ArrivalType type) => switch (type) {
-        ArrivalType.destination => 'Sie haben Ihr Ziel erreicht',
-        ArrivalType.stop => 'Sie haben den Zwischenstopp erreicht',
-        ArrivalType.pickup => 'Sie haben den Abholort erreicht',
-      };
+    ArrivalType.destination => 'Sie haben Ihr Ziel erreicht',
+    ArrivalType.stop => 'Sie haben den Zwischenstopp erreicht',
+    ArrivalType.pickup => 'Sie haben den Abholort erreicht',
+  };
 
   @override
   String get recalculatingSpoken => 'Route wird neu berechnet';

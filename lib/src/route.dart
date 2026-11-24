@@ -39,8 +39,9 @@ class NavStep {
         : 0;
     String text(Object? v) => v is String ? v : '';
     return NavStep(
-      maneuverType:
-          text(maneuver['type']).isEmpty ? 'turn' : text(maneuver['type']),
+      maneuverType: text(maneuver['type']).isEmpty
+          ? 'turn'
+          : text(maneuver['type']),
       modifier: maneuver['modifier'] is String
           ? maneuver['modifier'] as String
           : null,
@@ -170,8 +171,9 @@ class NavRoute {
         if (legSteps is! List) continue;
         for (final s in legSteps) {
           if (s is Map) {
-            steps.add(NavStep.fromOsrmJson(Map<String, dynamic>.from(s),
-                legIndex: i));
+            steps.add(
+              NavStep.fromOsrmJson(Map<String, dynamic>.from(s), legIndex: i),
+            );
           }
         }
       }
@@ -187,7 +189,8 @@ class NavRoute {
         final loc = w is Map ? w['location'] : null;
         if (loc is List && loc.length > 1 && loc[0] is num && loc[1] is num) {
           waypoints.add(
-              LatLng((loc[1] as num).toDouble(), (loc[0] as num).toDouble()));
+            LatLng((loc[1] as num).toDouble(), (loc[0] as num).toDouble()),
+          );
         }
       }
     }
@@ -238,7 +241,10 @@ class NavRoute {
   }
 
   static List<LatLng> _readGeometry(
-      Object? geometry, int? precision, List<NavStep> steps) {
+    Object? geometry,
+    int? precision,
+    List<NavStep> steps,
+  ) {
     if (geometry is Map && geometry['coordinates'] is List) {
       return [
         for (final c in geometry['coordinates'] as List)

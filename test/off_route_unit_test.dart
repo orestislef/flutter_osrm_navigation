@@ -7,8 +7,12 @@ import 'support/tracks.dart';
 void main() {
   group('RerouteGate', () {
     test('one at a time, then waits that double up to the cap', () {
-      final gate = RerouteGate(const NavigationSettings(
-          rerouteMinSeconds: 10, rerouteRetryMaxSeconds: 35));
+      final gate = RerouteGate(
+        const NavigationSettings(
+          rerouteMinSeconds: 10,
+          rerouteRetryMaxSeconds: 35,
+        ),
+      );
       expect(gate.canAsk(0), isTrue);
       gate.asked(0);
       expect(gate.canAsk(60000), isFalse, reason: 'one is out');
@@ -58,7 +62,9 @@ void main() {
         t += 1000;
         final p = offsetBy(offsetBy(trackStart, 90, 300 + i * 10.0), 0, 80);
         final v = judge(
-            d, NavFix(p, accuracyM: 5, speedMps: 10, headingDeg: 90, atMs: t));
+          d,
+          NavFix(p, accuracyM: 5, speedMps: 10, headingDeg: 90, atMs: t),
+        );
         expect(v, FixVerdict.offRoute);
         expect(d.offRoute, i == 2);
       }
@@ -76,8 +82,10 @@ void main() {
     test('standing still is not counted', () {
       final d = OffRouteDetector(const NavigationSettings());
       final p = offsetBy(offsetBy(trackStart, 90, 300), 0, 80);
-      expect(judge(d, NavFix(p, accuracyM: 5, speedMps: 0, atMs: 1000)),
-          FixVerdict.still);
+      expect(
+        judge(d, NavFix(p, accuracyM: 5, speedMps: 0, atMs: 1000)),
+        FixVerdict.still,
+      );
     });
 
     test('driving back along the line is the wrong way', () {
@@ -87,7 +95,9 @@ void main() {
         t += 1000;
         final p = offsetBy(trackStart, 90, 400 - i * 10.0);
         final v = judge(
-            d, NavFix(p, accuracyM: 5, speedMps: 10, headingDeg: 270, atMs: t));
+          d,
+          NavFix(p, accuracyM: 5, speedMps: 10, headingDeg: 270, atMs: t),
+        );
         expect(v, FixVerdict.wrongWay);
       }
       expect(d.wrongWay, isTrue);

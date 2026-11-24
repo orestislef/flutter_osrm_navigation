@@ -56,8 +56,11 @@ void main() {
       // Judged against that fix, the first simulated ones are 200 m away
       // within a second or two: faster than any car, so all left out.
       async.elapse(const Duration(milliseconds: 2500));
-      expect(nav.remainingDistance, closeTo(1480, 5),
-          reason: 'moving from the first simulated fix');
+      expect(
+        nav.remainingDistance,
+        closeTo(1480, 5),
+        reason: 'moving from the first simulated fix',
+      );
       async.elapse(const Duration(seconds: 8));
       expect(nav.remainingDistance, closeTo(1400, 15));
       expect(nav.gpsSignal, GpsSignal.good);
@@ -87,16 +90,19 @@ void main() {
     /// A controller whose router answers with a straight route east from
     /// wherever it is asked, and records the requests.
     (NavigationController, List<RouteRequest>, RecordingVoice) rerouting(
-        FakeAsync async) {
+      FakeAsync async,
+    ) {
       final asked = <RouteRequest>[];
       final voice = RecordingVoice();
       final nav = NavigationController(
         voice: voice,
         clock: () => async.elapsed.inMilliseconds,
-        router: CallbackRouter(route: (r) async {
-          asked.add(r);
-          return navRoute(r.points.first, [(90, 400, 'Detour')]);
-        }),
+        router: CallbackRouter(
+          route: (r) async {
+            asked.add(r);
+            return navRoute(r.points.first, [(90, 400, 'Detour')]);
+          },
+        ),
       );
       return (nav, asked, voice);
     }

@@ -132,7 +132,9 @@ class _LimitSign extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      shape: CircleBorder(side: BorderSide(color: ring, width: size * 0.11)),
+      shape: CircleBorder(
+        side: BorderSide(color: ring, width: size * 0.11),
+      ),
       elevation: 4,
       child: SizedBox.square(
         dimension: size,

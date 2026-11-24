@@ -200,7 +200,8 @@ double metresBetween(LatLng a, LatLng b) {
   final lat2 = b.latitude * math.pi / 180;
   final dLat = lat2 - lat1;
   final dLng = (b.longitude - a.longitude) * math.pi / 180;
-  final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+  final h =
+      math.sin(dLat / 2) * math.sin(dLat / 2) +
       math.cos(lat1) * math.cos(lat2) * math.sin(dLng / 2) * math.sin(dLng / 2);
   return 2 * r * math.asin(math.min(1, math.sqrt(h)));
 }
@@ -226,7 +227,8 @@ double angleBetween(double a, double b) {
 LatLng offsetBy(LatLng from, double bearingDeg, double metres) {
   final rad = bearingDeg * math.pi / 180;
   final dy = metres * math.cos(rad) / _metresPerDegree;
-  final dx = metres *
+  final dx =
+      metres *
       math.sin(rad) /
       (_metresPerDegree * math.cos(from.latitude * math.pi / 180));
   return LatLng(from.latitude + dy, from.longitude + dx);

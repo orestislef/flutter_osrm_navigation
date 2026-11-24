@@ -47,11 +47,11 @@ class NavigationController extends ChangeNotifier {
     NavigationVoice? voice,
     bool voiceEnabled = true,
     @visibleForTesting int Function()? clock,
-  })  : _settings = settings,
-        _strings = strings,
-        _voice = voice ?? TtsNavigationVoice(),
-        _voiceEnabled = voiceEnabled,
-        _clock = clock ?? _monotonicMs {
+  }) : _settings = settings,
+       _strings = strings,
+       _voice = voice ?? TtsNavigationVoice(),
+       _voiceEnabled = voiceEnabled,
+       _clock = clock ?? _monotonicMs {
     _detector = OffRouteDetector(settings);
     _gate = RerouteGate(settings);
   }
@@ -200,8 +200,10 @@ class NavigationController extends ChangeNotifier {
     _voiceEnabled = true;
     _notify();
     // The page sees the tap before Flutter does, give it that moment.
-    Future<void>.delayed(const Duration(milliseconds: 150),
-        () => _speak(_strings.voiceOn, force: true));
+    Future<void>.delayed(
+      const Duration(milliseconds: 150),
+      () => _speak(_strings.voiceOn, force: true),
+    );
   }
 
   // ── State ────────────────────────────────────────────────────────────
@@ -277,8 +279,8 @@ class NavigationController extends ChangeNotifier {
 
   /// Time left, from the route's times and the router's latest estimate.
   Duration get remainingDuration => Duration(
-      milliseconds:
-          (_routeSecondsFrom(_along) * _trafficFactor * 1000).round());
+    milliseconds: (_routeSecondsFrom(_along) * _trafficFactor * 1000).round(),
+  );
 
   /// When the user should arrive, by the device's clock.
   DateTime? get estimatedArrival =>
@@ -389,12 +391,17 @@ class NavigationController extends ChangeNotifier {
   /// Listens to [fixes] until [detachLocation], [dispose], or another
   /// stream is attached. Errors on the stream (permission taken away,
   /// location switched off) go to [onError] and do not end navigation.
-  void attachLocation(Stream<NavFix> fixes,
-      {void Function(Object error)? onError}) {
+  void attachLocation(
+    Stream<NavFix> fixes, {
+    void Function(Object error)? onError,
+  }) {
     _locationSub?.cancel();
-    _locationSub = fixes.listen(updateLocation, onError: (Object e) {
-      onError?.call(e);
-    });
+    _locationSub = fixes.listen(
+      updateLocation,
+      onError: (Object e) {
+        onError?.call(e);
+      },
+    );
   }
 
   /// Stops listening to the attached location stream.
@@ -446,8 +453,8 @@ class NavigationController extends ChangeNotifier {
     } else if (_arrived) {
       // Drove on, well away from the place and the end of the route: not
       // there any more, and off the route (a new route back).
-      final away =
-          (_settings.endGraceMeters + _settings.offRouteMeters).toDouble();
+      final away = (_settings.endGraceMeters + _settings.offRouteMeters)
+          .toDouble();
       if (metresBetween(position, destination) > away &&
           metresBetween(position, line.points.last) > away) {
         _arrived = false;
@@ -457,7 +464,8 @@ class NavigationController extends ChangeNotifier {
     }
 
     final wasOff = _offRoute;
-    _offRoute = (_detector.offRoute ||
+    _offRoute =
+        (_detector.offRoute ||
             _missedUturn(stamped, match, line, destination)) &&
         !_arrived;
     if (_offRoute != wasOff) _emit(OffRouteChanged(_offRoute));
@@ -495,13 +503,15 @@ class NavigationController extends ChangeNotifier {
       _lastLimit = limit;
       _emit(SpeedLimitChanged(limit));
     }
-    _emit(ProgressUpdated(
-      remainingDistance: remainingDistance,
-      remainingDuration: remainingDuration,
-      distanceToNextStep: _distanceToNext,
-      position: displayPosition ?? position,
-      speedMps: speedMps,
-    ));
+    _emit(
+      ProgressUpdated(
+        remainingDistance: remainingDistance,
+        remainingDuration: remainingDuration,
+        distanceToNextStep: _distanceToNext,
+        position: displayPosition ?? position,
+        speedMps: speedMps,
+      ),
+    );
     _notify();
   }
 
@@ -527,11 +537,13 @@ class NavigationController extends ChangeNotifier {
       throw StateError('No position yet: pass from, or send a fix first');
     }
     final moving = from == null && speedMps >= _settings.headingMps;
-    final route = await r.route(RouteRequest(
-      points: [origin, ...via, destination],
-      headingDeg: moving ? displayHeading : null,
-      headingToleranceDeg: _settings.headingToleranceDegrees,
-    ));
+    final route = await r.route(
+      RouteRequest(
+        points: [origin, ...via, destination],
+        headingDeg: moving ? displayHeading : null,
+        headingToleranceDeg: _settings.headingToleranceDegrees,
+      ),
+    );
     if (!route.usable) {
       throw const RoutingException('The router gave an empty route');
     }
@@ -655,13 +667,14 @@ class NavigationController extends ChangeNotifier {
     _line = line.isEmpty ? null : line;
     _segmentLimits = _limitsFor(route, pts);
     _lastLimit = null;
-    _maneuverAlong =
-        _line == null ? const [] : _maneuverPositions(_line!, steps);
+    _maneuverAlong = _line == null
+        ? const []
+        : _maneuverPositions(_line!, steps);
     _routeDurationS = route == null
         ? 0
         : (route.durationS > 0
-            ? route.durationS
-            : steps.fold<double>(0, (s, step) => s + step.durationS));
+              ? route.durationS
+              : steps.fold<double>(0, (s, step) => s + step.durationS));
     _along = 0;
     _lastMatch = null;
     _stage.clear();
@@ -730,7 +743,8 @@ class NavigationController extends ChangeNotifier {
     while (_nextWaypoint < _waypoints.length) {
       final at = _waypointAlong[_nextWaypoint];
       final point = _waypoints[_nextWaypoint];
-      final reached = (onLine && at - _along <= _settings.arriveMeters) ||
+      final reached =
+          (onLine && at - _along <= _settings.arriveMeters) ||
           (metresBetween(position, point) <= _settings.arriveMeters &&
               _along >= at - 200);
       if (!reached) return;
@@ -754,8 +768,11 @@ class NavigationController extends ChangeNotifier {
       } else if (i == steps.length - 1 && step.isArrive) {
         along = line.lengthM;
       } else {
-        final m = line.match(step.location,
-            fromM: math.max(previous, expected - 300), toM: expected + 300);
+        final m = line.match(
+          step.location,
+          fromM: math.max(previous, expected - 300),
+          toM: expected + 300,
+        );
         along = m?.alongM ?? expected;
         along = along.clamp(previous, line.lengthM);
       }
@@ -830,17 +847,22 @@ class NavigationController extends ChangeNotifier {
     final h = fix.headingDeg;
     final heading =
         h != null && h >= 0 && (fix.speedMps ?? 0) >= _settings.headingMps
-            ? h
-            : _detector.heading;
+        ? h
+        : _detector.heading;
     final ahead = math.max(1500.0, (fix.speedMps ?? 0) * 90);
-    final near = line.match(fix.position,
-        fromM: _along - 80,
-        toM: _along + ahead,
-        headingDeg: heading,
-        againstPenaltyM: 30);
+    final near = line.match(
+      fix.position,
+      fromM: _along - 80,
+      toM: _along + ahead,
+      headingDeg: heading,
+      againstPenaltyM: 30,
+    );
     if (near != null && near.distanceM <= _settings.offRouteMeters) return near;
-    final any =
-        line.match(fix.position, headingDeg: heading, againstPenaltyM: 30)!;
+    final any = line.match(
+      fix.position,
+      headingDeg: heading,
+      againstPenaltyM: 30,
+    )!;
     if (near == null) return any;
     return any.distanceM + 20 < near.distanceM ? any : near;
   }
@@ -849,7 +871,11 @@ class NavigationController extends ChangeNotifier {
   /// it: the U-turn was not taken. The wrong way rule cannot see this, as
   /// the car still drives along the route's direction.
   bool _missedUturn(
-      NavFix fix, RouteMatch match, RouteLine line, LatLng destination) {
+    NavFix fix,
+    RouteMatch match,
+    RouteLine line,
+    LatLng destination,
+  ) {
     final heading = _detector.heading;
     if (heading == null || (_detector.speed ?? 0) < _settings.movingMps) {
       return false;
@@ -915,11 +941,13 @@ class NavigationController extends ChangeNotifier {
     final moving = speedMps >= _settings.headingMps;
     NavRoute route;
     try {
-      route = await r.route(RouteRequest(
-        points: [fix.position, ...stops, to],
-        headingDeg: moving ? displayHeading : null,
-        headingToleranceDeg: _settings.headingToleranceDegrees,
-      ));
+      route = await r.route(
+        RouteRequest(
+          points: [fix.position, ...stops, to],
+          headingDeg: moving ? displayHeading : null,
+          headingToleranceDeg: _settings.headingToleranceDegrees,
+        ),
+      );
       if (!route.usable) {
         throw const RoutingException('The router gave an empty route');
       }
@@ -979,11 +1007,13 @@ class NavigationController extends ChangeNotifier {
     Object? error;
     try {
       route = await r
-          .route(RouteRequest(
-            points: [fix.position, ...waypoints, to],
-            headingDeg: moving ? _detector.heading : null,
-            headingToleranceDeg: _settings.headingToleranceDegrees,
-          ))
+          .route(
+            RouteRequest(
+              points: [fix.position, ...waypoints, to],
+              headingDeg: moving ? _detector.heading : null,
+              headingToleranceDeg: _settings.headingToleranceDegrees,
+            ),
+          )
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       error = e;
@@ -991,9 +1021,11 @@ class NavigationController extends ChangeNotifier {
     if (_disposed || seq != _routeSeq || !_active) return;
     final ok = route != null && route.usable;
     // A router that says how long to wait (rate limited) is listened to.
-    _gate.answered(_clock(),
-        ok: ok,
-        waitAtLeast: error is RoutingException ? error.retryAfter : null);
+    _gate.answered(
+      _clock(),
+      ok: ok,
+      waitAtLeast: error is RoutingException ? error.retryAfter : null,
+    );
     _recalculating = false;
     if (ok) {
       _routeSeq++;
@@ -1010,8 +1042,11 @@ class NavigationController extends ChangeNotifier {
       final last = _lastFix;
       if (last != null) _matchStart(last);
     } else {
-      _emit(RerouteFailed(
-          error ?? const RoutingException('The router gave an empty route')));
+      _emit(
+        RerouteFailed(
+          error ?? const RoutingException('The router gave an empty route'),
+        ),
+      );
     }
     _notify();
   }
@@ -1027,11 +1062,13 @@ class NavigationController extends ChangeNotifier {
     double? seconds;
     try {
       seconds = await r
-          .eta(RouteRequest(
-            points: [fix.position, ...remainingWaypoints, to],
-            headingDeg: _detector.headingReliable ? _detector.heading : null,
-            headingToleranceDeg: _settings.headingToleranceDegrees,
-          ))
+          .eta(
+            RouteRequest(
+              points: [fix.position, ...remainingWaypoints, to],
+              headingDeg: _detector.headingReliable ? _detector.heading : null,
+              headingToleranceDeg: _settings.headingToleranceDegrees,
+            ),
+          )
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       // The route's own times stay. A router that asks to wait gets that
@@ -1070,7 +1107,8 @@ class NavigationController extends ChangeNotifier {
       if (isLast) {
         if (!_arrivingSpoken &&
             _speak(
-                s.inDistance(s.spokenDistance(d, units), s.arriving(type)))) {
+              s.inDistance(s.spokenDistance(d, units), s.arriving(type)),
+            )) {
           _arrivingSpoken = true;
         }
       } else if ((_stage[i] ?? 0) < 2 &&
@@ -1080,10 +1118,11 @@ class NavigationController extends ChangeNotifier {
       return;
     }
     final nowM = math.max(
-        _settings.promptNowMeters.toDouble(),
-        _settings.promptLeadSeconds > 0
-            ? speedMps * _settings.promptLeadSeconds
-            : 0.0);
+      _settings.promptNowMeters.toDouble(),
+      _settings.promptLeadSeconds > 0
+          ? speedMps * _settings.promptLeadSeconds
+          : 0.0,
+    );
     final nearM = _settings.promptNearMeters.toDouble();
     final farM = _settings.promptFarMeters.toDouble();
     var due = 0;
