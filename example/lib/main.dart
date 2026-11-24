@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_osrm_navigation/flutter_osrm_navigation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:material_ui/material_ui.dart';
 
 // OSRM's public demo server is fine to try things with. For a real app run
 // your own OSRM or Valhalla and point the router at it:

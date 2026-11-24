@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../controller.dart';
 import '../route.dart';
@@ -299,7 +299,7 @@ class NavigationBanner extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(child: main),
-                  if (voiceButton != null) voiceButton,
+                  ?voiceButton,
                   // Nothing to show below (arrived): the buttons come up here
                   // instead of sitting alone on an empty strip.
                   if (!footerRow && footerActions.isNotEmpty)

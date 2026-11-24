@@ -34,16 +34,19 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.2.3
+  flutter_osrm_navigation: ^0.3.0
+  material_ui: ^1.11.1
 ```
+
+The widgets are built on [material_ui](https://pub.dev/packages/material_ui), the Material library that replaced `package:flutter/material.dart` in Flutter 3.47, and read its `Theme`. Your app should use `package:material_ui/material_ui.dart` too. An app still on `package:flutter/material.dart` stays on `flutter_osrm_navigation: ^0.2.3`.
 
 ## Quick start
 
 ```dart
-import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_osrm_navigation/flutter_osrm_navigation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:material_ui/material_ui.dart';
 
 class NavigationScreen extends StatefulWidget {
   const NavigationScreen({super.key});
@@ -231,9 +234,11 @@ try {
 
 ## Colors
 
-Everything takes its colors from your theme. To change some, add a `NavigationStyle` to the theme:
+Everything takes its colors from your theme, material_ui's `Theme`. To change some, add a `NavigationStyle` to the theme's extensions:
 
 ```dart
+import 'package:material_ui/material_ui.dart';
+
 MaterialApp(
   theme: ThemeData(
     colorSchemeSeed: Colors.teal,

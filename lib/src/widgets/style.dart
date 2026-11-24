@@ -1,15 +1,18 @@
 import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Colors and sizes of the navigation widgets.
 ///
 /// Every field is optional. What you leave out comes from the app's
 /// [ColorScheme], so the widgets match your theme with no setup. Set it app
 /// wide as a theme extension, or per widget with their `style` parameter
-/// (which wins over the theme):
+/// (which wins over the theme). The theme is material_ui's, not the one of
+/// `package:flutter/material.dart`:
 ///
 /// ```dart
+/// import 'package:material_ui/material_ui.dart';
+///
 /// MaterialApp(
 ///   theme: ThemeData(
 ///     extensions: const [

@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_osrm_navigation/flutter_osrm_navigation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'support/drive.dart';
 
@@ -236,6 +236,114 @@ void main() {
       await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
       expect(find.byKey(const ValueKey('nav-banner')), findsNothing);
+    });
+  });
+
+  // This file imports material_ui only, so there is no Theme, Material or
+  // MaterialLocalizations of the framework's anywhere in these trees. A
+  // banner still on the framework's Material would not find the theme
+  // extension, and its IconButton and InkWell would throw for the missing
+  // Material ancestor.
+  group('material_ui', () {
+    const banner = Color(0xFF101820);
+    const onBanner = Color(0xFFFEE715);
+    const then = Color(0xFF2D2926);
+    const onThen = Color(0xFFE94B3C);
+    const voiceTap = Color(0xFF00539C);
+    const footer = Color(0xFFF2AA4C);
+
+    testWidgets('a NavigationStyle in ThemeData.extensions is what the '
+        'banner draws with', (tester) async {
+      final d = Drive()..hold = true;
+      d.start(
+        navRoute(trackStart, [
+          (90, 600, 'Egnatia'),
+          (0, 100, 'Agias Sofias'),
+          (90, 400, 'Ermou'),
+        ]),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          theme: ThemeData(
+            colorSchemeSeed: Colors.indigo,
+            extensions: const [
+              NavigationStyle(
+                bannerColor: banner,
+                onBannerColor: onBanner,
+                thenColor: then,
+                onThenColor: onThen,
+                voiceTapColor: voiceTap,
+                footerColor: footer,
+              ),
+            ],
+          ),
+          home: Scaffold(body: NavigationBanner(controller: d.nav)),
+        ),
+      );
+      await tester.runAsync(
+        () => d.feed(
+          drive(legs(trackStart, [(90, 600), (0, 100), (90, 400)])).take(5),
+        ),
+      );
+      d.voice.current = VoiceState.needsTap;
+      d.nav.voiceEnabled = false;
+      d.nav.voiceEnabled = true;
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(boxColor(tester, 'nav-banner'), banner);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('nav-distance')))
+            .style
+            ?.color,
+        onBanner,
+      );
+      expect(
+        tester.widget<ColoredBox>(find.byKey(const ValueKey('nav-then'))).color,
+        then,
+      );
+      expect(
+        tester.widget<Text>(find.text('Turn right onto Ermou')).style?.color,
+        onThen,
+      );
+      expect(
+        tester
+            .widget<Material>(
+              find
+                  .ancestor(
+                    of: find.byKey(const ValueKey('nav-voice-tap-text')),
+                    matching: find.byType(Material),
+                  )
+                  .first,
+            )
+            .color,
+        voiceTap,
+      );
+      expect(
+        tester.widget<Material>(find.byKey(const ValueKey('nav-banner'))).color,
+        footer,
+      );
+    });
+
+    testWidgets('the banner builds and taps under a material_ui MaterialApp', (
+      tester,
+    ) async {
+      final d = Drive();
+      d.start(testRoute());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigationBanner(controller: d.nav)),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('nav-banner')), findsOneWidget);
+      expect(find.byType(IconButton), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('nav-voice')));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(d.nav.voiceEnabled, isFalse);
     });
   });
 

@@ -43,14 +43,12 @@ class NavigationController extends ChangeNotifier {
   NavigationController({
     this.router,
     NavigationSettings settings = const NavigationSettings(),
-    NavigationStrings strings = const EnglishNavigationStrings(),
+    this._strings = const EnglishNavigationStrings(),
     NavigationVoice? voice,
-    bool voiceEnabled = true,
+    this._voiceEnabled = true,
     @visibleForTesting int Function()? clock,
   }) : _settings = settings,
-       _strings = strings,
        _voice = voice ?? TtsNavigationVoice(),
-       _voiceEnabled = voiceEnabled,
        _clock = clock ?? _monotonicMs {
     _detector = OffRouteDetector(settings);
     _gate = RerouteGate(settings);

@@ -100,11 +100,7 @@ abstract class NavRouter {
 /// ```
 class CallbackRouter extends NavRouter {
   /// Creates a router that calls [route] and, when given, [eta].
-  const CallbackRouter({
-    required Future<NavRoute> Function(RouteRequest request) route,
-    Future<double?> Function(RouteRequest request)? eta,
-  }) : _route = route,
-       _eta = eta;
+  const CallbackRouter({required this._route, this._eta});
 
   final Future<NavRoute> Function(RouteRequest request) _route;
   final Future<double?> Function(RouteRequest request)? _eta;
@@ -197,7 +193,7 @@ abstract class _HttpRouter extends NavRouter {
     this.retryMainAfter = const Duration(minutes: 5),
     Map<String, String>? headers,
     this.headersBuilder,
-    http.Client? client,
+    this._client,
     required this.timeout,
   }) : baseUrl = _trim(baseUrl),
        fallbackUrls = List.unmodifiable(fallbackUrls.map(_trim)),
@@ -205,8 +201,7 @@ abstract class _HttpRouter extends NavRouter {
          // Browsers refuse to let a page set the user agent.
          if (!kIsWeb) 'User-Agent': 'flutter_osrm_navigation',
          ...?headers,
-       },
-       _client = client;
+       };
 
   static String _trim(String url) => url.replaceAll(RegExp(r'/+$'), '');
 

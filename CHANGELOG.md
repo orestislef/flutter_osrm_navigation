@@ -1,3 +1,19 @@
+## 0.3.0
+
+**The widgets moved from `package:flutter/material.dart` to [material_ui](https://pub.dev/packages/material_ui).** Flutter 3.47 deprecated its own Material library for the material_ui package, and the two are separate copies with different types (`Theme`, `ThemeData`, `ThemeExtension`, `Material`, `Icons`...). An app on material_ui could not reach the banner and the buttons, which read the framework's `Theme`, and could not put `NavigationStyle` in its `ThemeData.extensions`.
+
+* `NavigationStyle` extends material_ui's `ThemeExtension` and is read with material_ui's `Theme.of(context)`. Same fields, same defaults, same `lerp`
+* The banner, the speed badge, the map buttons and the maneuver icons are material_ui widgets
+* Needs Dart 3.13 and Flutter 3.47 or newer. Dependencies at their latest versions
+
+**Your app must use material_ui's `Theme`** (`import 'package:material_ui/material_ui.dart';`) for `NavigationStyle` and for the colors the widgets take from the theme. A `ThemeData` of `package:flutter/material.dart` cannot hold `NavigationStyle` any more. If your app is not ready to move, stay on the old version:
+
+```yaml
+flutter_osrm_navigation: ^0.2.3
+```
+
+Nothing else changed.
+
 ## 0.2.3
 
 * README: the next turn outside the app. Which events to listen to, an ongoing notification on Android, and on iOS (which has no such notification while locating in the background) a quiet notification or a Live Activity, with SF Symbols for the maneuvers

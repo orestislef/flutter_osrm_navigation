@@ -17,7 +17,7 @@ Map<String, dynamic> step(
   'driving_side': 'right',
   'maneuver': {
     'type': type,
-    if (modifier != null) 'modifier': modifier,
+    'modifier': ?modifier,
     'location': [at.longitude, at.latitude],
   },
 };
