@@ -754,6 +754,110 @@ void main() {
     });
   });
 
+  group('a route with no length', () {
+    const p = LatLng(39.639, 22.4191);
+    NavRoute samePoint() => const NavRoute(
+      points: [p, p],
+      steps: [
+        NavStep(maneuverType: 'depart', location: p),
+        NavStep(maneuverType: 'arrive', location: p),
+      ],
+    );
+
+    test('the same point twice starts arrived, it does not throw', () async {
+      final voice = SilentNavigationVoice();
+      final c = NavigationController(voice: voice);
+      final events = <NavigationEvent>[];
+      c.events.listen(events.add);
+      expect(samePoint().usable, isFalse);
+      expect(samePoint().hasLength, isFalse);
+      c.start(samePoint());
+      expect(c.isActive, isTrue);
+      expect(c.arrived, isTrue);
+      expect(c.upcomingStep!.isArrive, isTrue);
+      expect(c.remainingDistance, 0);
+      expect(c.remainingLine, isEmpty);
+      expect(c.distanceToNextStep, 0);
+      expect(c.thenStep, isNull);
+      await Drive.settle();
+      expect(events.map((e) => e.runtimeType), [
+        NavigationStarted,
+        DestinationReached,
+        InstructionSpoken,
+      ]);
+      expect(voice.said, ['You are at the destination']);
+
+      // Fixes after it change nothing and keep the GPS signal good.
+      c.updateLocation(const NavFix(p, accuracyM: 5));
+      c.checkGps();
+      expect(c.gpsSignal, GpsSignal.good);
+      expect(c.arrived, isTrue);
+      c.stop();
+      expect(c.isActive, isFalse);
+    });
+
+    test('two points within a metre count as no length', () {
+      final q = offsetBy(p, 90, 0.5);
+      final route = NavRoute(
+        points: [p, q],
+        steps: [
+          const NavStep(maneuverType: 'depart', location: p),
+          NavStep(maneuverType: 'arrive', location: q),
+        ],
+      );
+      expect(route.usable, isFalse);
+      final d = Drive();
+      d.start(route);
+      expect(d.nav.isActive, isTrue);
+      expect(d.nav.arrived, isTrue);
+    });
+
+    test('navigateTo to where the car is arrives at once', () async {
+      final d = Drive();
+      d.nav.router = CallbackRouter(route: (r) async => samePoint());
+      d.nav.updateLocation(const NavFix(p, accuracyM: 5));
+      final route = await d.nav.navigateTo(p);
+      expect(route.usable, isFalse);
+      expect(d.nav.isActive, isTrue);
+      expect(d.nav.arrived, isTrue);
+    });
+
+    test(
+      'a reroute that answers with no length keeps the current route',
+      () async {
+        final d = Drive();
+        final first = testRoute();
+        d.start(first);
+        d.answer = (from) => NavRoute(
+          points: [from, from],
+          steps: [
+            NavStep(maneuverType: 'depart', location: from),
+            NavStep(maneuverType: 'arrive', location: from),
+          ],
+        );
+        // A wrong turn far from the destination.
+        await d.feed(drive(legs(trackStart, [(90, 600), (90, 300)])).take(68));
+        await Drive.settle();
+        expect(d.asked, hasLength(1));
+        expect(identical(d.nav.route, first), isTrue);
+        expect(d.nav.arrived, isFalse, reason: 'far from the destination');
+        final failed = d.events.whereType<RerouteFailed>().single;
+        expect('${failed.error}', contains('no length'));
+        expect(d.nav.recalculating, isFalse);
+      },
+    );
+
+    test('a normal route is not touched', () {
+      expect(testRoute().usable, isTrue);
+      expect(testRoute().hasLength, isTrue);
+      final d = Drive();
+      d.start(testRoute());
+      expect(d.nav.isActive, isTrue);
+      expect(d.nav.arrived, isFalse);
+      expect(d.nav.distanceToNextStep, closeTo(600, 2));
+    });
+  });
+
   group('saying something of your own', () {
     test('through the voice, after the gap, or at once when asked', () async {
       final d = Drive();

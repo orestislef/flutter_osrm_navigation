@@ -291,8 +291,21 @@ class NavRoute {
   /// with `annotations=maxspeed` when its map data has them.
   final List<double?> speedLimitsKmh;
 
-  /// True when there is a line and at least one step to follow.
-  bool get usable => points.length >= 2 && steps.isNotEmpty;
+  /// Shorter than this, in metres, a route has no length to drive.
+  static const double minLengthM = 1;
+
+  /// Whether the line has any length to drive: at least [minLengthM] once
+  /// points repeated right after themselves are merged. A route to the spot
+  /// the car is already on comes back as the same point twice, and has none.
+  bool get hasLength {
+    final line = RouteLine(points);
+    return !line.isEmpty && line.lengthM >= minLengthM;
+  }
+
+  /// True when there is a line with length and at least one step to follow.
+  /// A route with no length ([hasLength] false) is not usable: there is
+  /// nothing to drive.
+  bool get usable => steps.isNotEmpty && hasLength;
 
   /// The end of the route.
   LatLng? get end => points.isNotEmpty

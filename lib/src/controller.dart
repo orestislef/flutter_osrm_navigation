@@ -421,6 +421,11 @@ class NavigationController extends ChangeNotifier {
     final line = _line;
     final destination = _destination;
     if (!_active || _steps.isEmpty || line == null || destination == null) {
+      // Started arrived, with no line: the fix still counts for the signal.
+      if (_active) {
+        _lastFixAt = now;
+        _lastUsedAt = now;
+      }
       _notify();
       return;
     }
@@ -520,7 +525,9 @@ class NavigationController extends ChangeNotifier {
   /// [from] defaults to the last fix. With no [from] and a moving user the
   /// route starts the way they are heading. [via] are stops on the way, in
   /// order. Throws a [RoutingException] when there is no route and a
-  /// [StateError] when there is no router or no position.
+  /// [StateError] when there is no router or no position. A route with no
+  /// length (the destination is where the car is) starts arrived, see
+  /// [start].
   Future<NavRoute> navigateTo(
     LatLng destination, {
     LatLng? from,
@@ -542,7 +549,7 @@ class NavigationController extends ChangeNotifier {
         headingToleranceDeg: _settings.headingToleranceDegrees,
       ),
     );
-    if (!route.usable) {
+    if (route.steps.isEmpty) {
       throw const RoutingException('The router gave an empty route');
     }
     start(
@@ -561,6 +568,12 @@ class NavigationController extends ChangeNotifier {
   /// of the line when not given). [waypoints] are the stops on the way, read
   /// from the route when not given. [destinationName] is said at the start
   /// ("Navigating to Home"). [arrival] changes how the end is announced.
+  ///
+  /// A route with no length ([NavRoute.hasLength] false), from the spot the
+  /// car is on to that same spot, starts arrived: [isActive] and [arrived]
+  /// are true, [NavigationStarted] then [DestinationReached] come through
+  /// [events], and the voice says the arrival. A route with no steps does
+  /// not start, [isActive] stays false. Neither throws.
   void start(
     NavRoute route, {
     LatLng? destination,
@@ -604,13 +617,19 @@ class NavigationController extends ChangeNotifier {
     _lastFixAt = null;
     _lastUsedAt = null;
     _gps = GpsSignal.good;
-    _active = _steps.isNotEmpty && _line != null && _destination != null;
+    _active = _steps.isNotEmpty && _destination != null;
+    // Nothing to drive: the start is the end.
+    final there = _active && _line == null;
+    if (there) _arrived = true;
     if (wasActive) _emit(const NavigationStopped());
     if (_active) _emit(NavigationStarted(route));
+    if (there) _emit(const DestinationReached());
     _notify();
     unawaited(_voice.prepare(_strings.speechLanguage));
     final name = destinationName;
-    if (_active && name != null && name.isNotEmpty) {
+    if (there) {
+      if (_speak(_strings.arrived(_arrival))) _arrivedSpoken = true;
+    } else if (_active && name != null && name.isNotEmpty) {
       _speak(_strings.navigatingTo(name));
     }
     // A fix that came before the start counts right away.
@@ -662,7 +681,7 @@ class NavigationController extends ChangeNotifier {
         ? route.points
         : [for (final s in steps) s.location];
     final line = RouteLine(pts);
-    _line = line.isEmpty ? null : line;
+    _line = line.isEmpty || line.lengthM < NavRoute.minLengthM ? null : line;
     _segmentLimits = _limitsFor(route, pts);
     _lastLimit = null;
     _maneuverAlong = _line == null
@@ -786,6 +805,10 @@ class NavigationController extends ChangeNotifier {
 
   /// The first maneuver still ahead of [along] that is a real action.
   int _upcomingFrom(double along) {
+    // No line, no positions along it: the last step, the arrival.
+    if (_maneuverAlong.length < _steps.length) {
+      return _steps.isEmpty ? 0 : _steps.length - 1;
+    }
     for (var i = 1; i < _steps.length; i++) {
       if (_maneuverAlong[i] < along - _passedM) continue;
       if (_steps[i].isPassive) continue;
@@ -796,7 +819,10 @@ class NavigationController extends ChangeNotifier {
 
   /// The real action after maneuver [i], when it comes within thenMeters.
   int? _thenOf(int i) {
-    if (_settings.thenMeters <= 0 || _steps.isEmpty || i >= _steps.length - 1) {
+    if (_settings.thenMeters <= 0 ||
+        _steps.isEmpty ||
+        i >= _steps.length - 1 ||
+        _maneuverAlong.length < _steps.length) {
       return null;
     }
     if (_steps[i].isArrive) return null;
@@ -1018,14 +1044,33 @@ class NavigationController extends ChangeNotifier {
     }
     if (_disposed || seq != _routeSeq || !_active) return;
     final ok = route != null && route.usable;
+    // No length from here: at the destination that is arriving, anywhere
+    // else the router has nothing to drive, and the current route stays.
+    final noLength = route != null && route.steps.isNotEmpty && !ok;
+    final atDestination =
+        noLength &&
+        metresBetween(fix.position, to) <=
+            _settings.endGraceMeters + _settings.offRouteMeters;
     // A router that says how long to wait (rate limited) is listened to.
     _gate.answered(
       _clock(),
-      ok: ok,
+      ok: ok || atDestination,
       waitAtLeast: error is RoutingException ? error.retryAfter : null,
     );
     _recalculating = false;
-    if (ok) {
+    if (atDestination) {
+      _detector.reset();
+      _offRoute = false;
+      _saidRecalculating = false;
+      _emit(const OffRouteChanged(false));
+      if (!_arrived) {
+        _arrived = true;
+        _emit(const DestinationReached());
+      }
+      if (!_arrivedSpoken && _speak(_strings.arrived(_arrival))) {
+        _arrivedSpoken = true;
+      }
+    } else if (ok) {
       _routeSeq++;
       final arrived = _arrived;
       _setRoute(route, waypoints);
@@ -1042,7 +1087,12 @@ class NavigationController extends ChangeNotifier {
     } else {
       _emit(
         RerouteFailed(
-          error ?? const RoutingException('The router gave an empty route'),
+          error ??
+              RoutingException(
+                noLength
+                    ? 'The router gave a route with no length'
+                    : 'The router gave an empty route',
+              ),
         ),
       );
     }
