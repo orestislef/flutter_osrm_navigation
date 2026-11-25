@@ -1,3 +1,9 @@
+## 0.3.1
+
+* Fix: a route with no length crashed `start` with a RangeError and left the controller half set up. A route to the spot the car is already on comes back as the same point twice, with a depart and an arrive step. Now `NavRoute.usable` is false for it (new `NavRoute.hasLength`, under a metre once repeated points are merged), and `start` and `navigateTo` take it and start arrived: `isActive` and `arrived` true, `DestinationReached`, the arrival said
+* Fix: the same answer to a reroute no longer throws. At the destination it counts as arriving, anywhere else the current route stays and the try counts as failed (`RerouteFailed`)
+* Looking up the next maneuver is safe on a route with no line
+
 ## 0.3.0
 
 **The widgets moved from `package:flutter/material.dart` to [material_ui](https://pub.dev/packages/material_ui).** Flutter 3.47 deprecated its own Material library for the material_ui package, and the two are separate copies with different types (`Theme`, `ThemeData`, `ThemeExtension`, `Material`, `Icons`...). An app on material_ui could not reach the banner and the buttons, which read the framework's `Theme`, and could not put `NavigationStyle` in its `ThemeData.extensions`.

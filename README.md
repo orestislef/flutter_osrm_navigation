@@ -34,7 +34,7 @@ It follows the car along the route line, speaks each maneuver, notices when you 
 
 ```yaml
 dependencies:
-  flutter_osrm_navigation: ^0.3.0
+  flutter_osrm_navigation: ^0.3.1
   material_ui: ^1.11.1
 ```
 
@@ -117,6 +117,8 @@ await controller.removeWaypoint(0);               // index in remainingWaypoints
 ```
 
 It comes through `events` as `Rerouted`, and "Navigating to" is not said again. When the router has no route the old one stays and the call throws.
+
+A route to the spot the car is already on (a destination picked right where it stands) has no length: `route.usable` is false and `route.hasLength` says why. `start` and `navigateTo` take it anyway and start arrived, with `DestinationReached` and the arrival said, rather than navigating nowhere.
 
 ## Routers
 
